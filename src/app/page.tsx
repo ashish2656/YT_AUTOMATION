@@ -14,7 +14,10 @@ import {
   X,
   Save,
   Link,
-  AlertCircle
+  AlertCircle,
+  User,
+  LogOut,
+  History
 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 
@@ -83,6 +86,12 @@ export default function Dashboard() {
     video_tags: []
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [accountInfo, setAccountInfo] = useState<{hasToken: boolean; account?: string; expiry?: string}>({hasToken: false});
+  const [isSwitchingAccount, setIsSwitchingAccount] = useState(false);
+  const [newToken, setNewToken] = useState("");
+  const [showTokenInput, setShowTokenInput] = useState(false);
+  const [uploadHistory, setUploadHistory] = useState<{file_name: string; youtube_url: string; uploaded_at: string}[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
 
   // Fetch stats from API
   const fetchStats = useCallback(async () => {
@@ -123,18 +132,91 @@ export default function Dashboard() {
     }
   }, []);
 
+  // Fetch account info
+  const fetchAccountInfo = useCallback(async () => {
+    try {
+      const response = await fetch("/api/account");
+      const data = await response.json();
+      setAccountInfo(data);
+    } catch (error) {
+      console.error("Failed to fetch account info:", error);
+    }
+  }, []);
+
+  // Fetch upload history
+  const fetchHistory = useCallback(async () => {
+    try {
+      const response = await fetch("/api/history?limit=20");
+      const data = await response.json();
+      if (Array.isArray(data)) {
+        setUploadHistory(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch history:", error);
+    }
+  }, []);
+
   // Initial data load
   useEffect(() => {
     fetchStats();
     fetchVideos();
     fetchConfig();
-  }, [fetchStats, fetchVideos, fetchConfig]);
+    fetchAccountInfo();
+    fetchHistory();
+  }, [fetchStats, fetchVideos, fetchConfig, fetchAccountInfo, fetchHistory]);
 
   // Refresh all data
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await Promise.all([fetchStats(), fetchVideos(), fetchConfig()]);
+    await Promise.all([fetchStats(), fetchVideos(), fetchConfig(), fetchAccountInfo(), fetchHistory()]);
     setIsRefreshing(false);
+  };
+
+  // Switch YouTube account
+  const handleSwitchAccount = async () => {
+    setIsSwitchingAccount(true);
+    try {
+      const response = await fetch("/api/account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "switch" })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setShowTokenInput(true);
+        setAccountInfo({ hasToken: false });
+      }
+    } catch (error) {
+      console.error("Failed to switch account:", error);
+    }
+    setIsSwitchingAccount(false);
+  };
+
+  // Save new token
+  const handleSaveToken = async () => {
+    if (!newToken.trim()) return;
+    
+    setIsSaving(true);
+    try {
+      const tokenData = JSON.parse(newToken);
+      const response = await fetch("/api/account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "save", token: tokenData })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setShowTokenInput(false);
+        setNewToken("");
+        await fetchAccountInfo();
+        setUploadMessage({ type: 'success', text: 'YouTube account updated successfully!' });
+      } else {
+        setUploadMessage({ type: 'error', text: data.error || 'Failed to save token' });
+      }
+    } catch (error) {
+      setUploadMessage({ type: 'error', text: 'Invalid token JSON format' });
+    }
+    setIsSaving(false);
   };
 
   // Upload next video
@@ -226,6 +308,14 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center gap-2">
             <motion.button
+              onClick={() => setShowHistory(true)}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors"
+            >
+              <History className="w-5 h-5 text-gray-400" />
+            </motion.button>
+            <motion.button
               onClick={handleRefresh}
               disabled={isRefreshing}
               whileHover={{ scale: 1.05 }}
@@ -245,6 +335,66 @@ export default function Dashboard() {
           </div>
         </div>
       </motion.header>
+
+      {/* History Modal */}
+      {showHistory && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setShowHistory(false)}
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <History className="w-5 h-5" />
+                Upload History
+              </h2>
+              <button 
+                onClick={() => setShowHistory(false)}
+                className="p-2 rounded-lg hover:bg-gray-800 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {uploadHistory.length === 0 ? (
+                <p className="text-gray-400 text-center py-8">No uploads yet</p>
+              ) : (
+                uploadHistory.map((item, i) => (
+                  <div key={i} className="p-4 rounded-xl bg-gray-800 border border-gray-700">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{item.file_name}</p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          {item.uploaded_at ? new Date(item.uploaded_at).toLocaleString() : 'Unknown date'}
+                        </p>
+                      </div>
+                      {item.youtube_url && (
+                        <a
+                          href={item.youtube_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="ml-4 px-3 py-1 rounded-lg bg-red-600 hover:bg-red-500 text-sm flex items-center gap-1"
+                        >
+                          <Youtube className="w-4 h-4" />
+                          View
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
 
       {/* Settings Modal */}
       {showSettings && (
@@ -390,6 +540,68 @@ export default function Dashboard() {
                     </span>
                   ))}
                 </div>
+              </div>
+
+              {/* Divider */}
+              <div className="border-t border-gray-700 pt-6">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <User className="w-5 h-5" />
+                  YouTube Account
+                </h3>
+
+                {/* Account Status */}
+                <div className="p-4 rounded-xl bg-gray-800 border border-gray-700 mb-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-400">Status</p>
+                      <p className={`font-medium ${accountInfo.hasToken ? 'text-green-400' : 'text-yellow-400'}`}>
+                        {accountInfo.hasToken ? '✓ Connected' : '⚠ Not Connected'}
+                      </p>
+                    </div>
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={handleSwitchAccount}
+                      disabled={isSwitchingAccount}
+                      className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 transition-colors flex items-center gap-2 text-sm"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      {isSwitchingAccount ? 'Switching...' : 'Switch Account'}
+                    </motion.button>
+                  </div>
+                </div>
+
+                {/* Token Input (shown after switch) */}
+                {showTokenInput && (
+                  <div className="space-y-3">
+                    <p className="text-sm text-yellow-400">
+                      Run this command locally to get a new token:
+                    </p>
+                    <code className="block p-3 rounded-lg bg-gray-950 text-xs text-green-400 overflow-x-auto">
+                      python3 automation.py stats
+                    </code>
+                    <p className="text-sm text-gray-400">
+                      Then paste the contents of token.json below:
+                    </p>
+                    <textarea
+                      value={newToken}
+                      onChange={(e) => setNewToken(e.target.value)}
+                      placeholder='{"token": "...", "refresh_token": "...", ...}'
+                      rows={4}
+                      className="w-full px-4 py-3 rounded-xl bg-gray-800 border border-gray-700 focus:border-purple-500 focus:outline-none transition-colors resize-none font-mono text-xs"
+                    />
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={handleSaveToken}
+                      disabled={isSaving || !newToken.trim()}
+                      className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-500 disabled:bg-gray-700 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Save className="w-4 h-4" />
+                      {isSaving ? 'Saving...' : 'Save New Token'}
+                    </motion.button>
+                  </div>
+                )}
               </div>
             </div>
           </motion.div>

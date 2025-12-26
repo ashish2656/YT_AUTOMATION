@@ -6,6 +6,8 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload, MediaIoBaseDownload
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.oauth2.credentials import Credentials
+from pymongo import MongoClient
+from datetime import datetime
 
 # ------------------------------
 # Get the directory where this script is located
@@ -13,7 +15,6 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # CONFIG FILES (relative to script directory)
 CONFIG_FILE = os.path.join(SCRIPT_DIR, "config.json")
-UPLOADED_TRACKER = os.path.join(SCRIPT_DIR, "uploaded_videos.json")
 TOKEN_FILE = os.path.join(SCRIPT_DIR, "token.json")
 
 # Default config - credentials loaded from environment or .env file
@@ -30,6 +31,25 @@ def load_env():
                     os.environ.setdefault(key.strip(), value.strip())
 
 load_env()
+
+# MongoDB Connection - Set MONGO_URI environment variable with your connection string
+# Format: mongodb+srv://username:password@cluster.xxxxx.mongodb.net/yt_automation?retryWrites=true&w=majority
+MONGO_URI = os.environ.get("MONGO_URI", "")
+
+def get_mongo_db():
+    """Get MongoDB database connection"""
+    if not MONGO_URI:
+        print("Warning: MONGO_URI not set, using local file fallback", file=sys.stderr)
+        return None
+    try:
+        client = MongoClient(MONGO_URI)
+        db = client.yt_automation
+        # Test connection
+        client.admin.command('ping')
+        return db
+    except Exception as e:
+        print(f"MongoDB connection error: {e}", file=sys.stderr)
+        return None
 
 DEFAULT_CONFIG = {
     "client_id": os.environ.get("GOOGLE_CLIENT_ID", ""),
@@ -58,38 +78,148 @@ def save_config(config):
     with open(CONFIG_FILE, "w") as f:
         json.dump(config, f, indent=2)
 
-def load_uploaded_ids():
-    if os.path.exists(UPLOADED_TRACKER):
-        with open(UPLOADED_TRACKER, "r") as f:
-            return set(json.load(f))
-    return set()
+# ------------------------------
+# MongoDB - Uploaded Videos Tracking
+# ------------------------------
+def load_uploaded_videos():
+    """Load uploaded videos from MongoDB"""
+    db = get_mongo_db()
+    if db is None:
+        return set(), {}
+    
+    try:
+        uploaded = db.uploaded_videos.find({})
+        ids = set()
+        titles = {}
+        for doc in uploaded:
+            ids.add(doc.get("drive_file_id", ""))
+            title = doc.get("file_name", "")
+            if title:
+                titles[title.lower()] = doc.get("drive_file_id", "")
+        return ids, titles
+    except Exception as e:
+        print(f"Error loading uploaded videos: {e}", file=sys.stderr)
+        return set(), {}
 
-def save_uploaded_id(video_id):
-    uploaded_ids = load_uploaded_ids()
-    uploaded_ids.add(video_id)
-    with open(UPLOADED_TRACKER, "w") as f:
-        json.dump(list(uploaded_ids), f)
+def save_uploaded_video(drive_file_id, file_name, youtube_video_id, youtube_url):
+    """Save uploaded video to MongoDB"""
+    db = get_mongo_db()
+    if db is None:
+        return False
+    
+    try:
+        db.uploaded_videos.insert_one({
+            "drive_file_id": drive_file_id,
+            "file_name": file_name,
+            "youtube_video_id": youtube_video_id,
+            "youtube_url": youtube_url,
+            "uploaded_at": datetime.utcnow()
+        })
+        return True
+    except Exception as e:
+        print(f"Error saving uploaded video: {e}", file=sys.stderr)
+        return False
+
+def is_video_uploaded(drive_file_id, file_name):
+    """Check if video is already uploaded (by ID or title)"""
+    uploaded_ids, uploaded_titles = load_uploaded_videos()
+    
+    # Check by Drive file ID
+    if drive_file_id in uploaded_ids:
+        return True
+    
+    # Check by file name (title match)
+    if file_name.lower() in uploaded_titles:
+        return True
+    
+    return False
+
+# ------------------------------
+# MongoDB - Token Management
+# ------------------------------
+def get_token_from_mongo():
+    """Get YouTube token from MongoDB"""
+    db = get_mongo_db()
+    if db is None:
+        return None
+    
+    try:
+        token_doc = db.tokens.find_one({"type": "youtube"})
+        if token_doc:
+            return token_doc.get("token_data")
+        return None
+    except Exception as e:
+        print(f"Error getting token from MongoDB: {e}", file=sys.stderr)
+        return None
+
+def save_token_to_mongo(token_data):
+    """Save YouTube token to MongoDB"""
+    db = get_mongo_db()
+    if db is None:
+        return False
+    
+    try:
+        db.tokens.update_one(
+            {"type": "youtube"},
+            {"$set": {"token_data": token_data, "updated_at": datetime.utcnow()}},
+            upsert=True
+        )
+        return True
+    except Exception as e:
+        print(f"Error saving token to MongoDB: {e}", file=sys.stderr)
+        return False
+
+def delete_token_from_mongo():
+    """Delete YouTube token from MongoDB"""
+    db = get_mongo_db()
+    if db is None:
+        return False
+    
+    try:
+        db.tokens.delete_one({"type": "youtube"})
+        return True
+    except Exception as e:
+        print(f"Error deleting token: {e}", file=sys.stderr)
+        return False
 
 # ------------------------------
 # Authentication
 # ------------------------------
 def get_credentials(config):
-    # First try to load from environment variable (for cloud deployment)
+    # Priority 1: MongoDB token
+    mongo_token = get_token_from_mongo()
+    if mongo_token:
+        try:
+            creds = Credentials.from_authorized_user_info(mongo_token, SCOPES)
+            if creds and creds.valid:
+                return creds
+            # If expired but has refresh token, it will auto-refresh
+            if creds and creds.expired and creds.refresh_token:
+                return creds
+        except Exception as e:
+            print(f"Failed to load token from MongoDB: {e}", file=sys.stderr)
+    
+    # Priority 2: Environment variable (for backward compatibility)
     token_json = os.environ.get("GOOGLE_TOKEN_JSON")
     if token_json:
         try:
             token_data = json.loads(token_json)
             creds = Credentials.from_authorized_user_info(token_data, SCOPES)
+            # Also save to MongoDB for future use
+            save_token_to_mongo(token_data)
             return creds
         except Exception as e:
             print(f"Failed to load token from env: {e}", file=sys.stderr)
     
-    # Then try to load from file
+    # Priority 3: Local file
     if os.path.exists(TOKEN_FILE):
         creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
+        # Also save to MongoDB
+        with open(TOKEN_FILE, "r") as f:
+            save_token_to_mongo(json.load(f))
         return creds
     
-    # If no token exists, try to authenticate (only works locally)
+    # Priority 4: OAuth flow (only works locally)
     flow = InstalledAppFlow.from_client_config(
         {
             "installed": {
@@ -102,8 +232,14 @@ def get_credentials(config):
         SCOPES
     )
     creds = flow.run_local_server(port=0)
+    
+    # Save to file
     with open(TOKEN_FILE, "w") as f:
         f.write(creds.to_json())
+    
+    # Save to MongoDB
+    save_token_to_mongo(json.loads(creds.to_json()))
+    
     print("Authentication complete!")
     return creds
 
@@ -123,7 +259,7 @@ def get_stats():
     ).execute()
     
     total = len(results.get("files", []))
-    uploaded_ids = load_uploaded_ids()
+    uploaded_ids, _ = load_uploaded_videos()
     uploaded = len(uploaded_ids)
     
     return {"total": total, "uploaded": uploaded, "pending": total - uploaded}
@@ -141,7 +277,7 @@ def get_videos(limit=20):
         fields="files(id, name, size)"
     ).execute()
     
-    uploaded_ids = load_uploaded_ids()
+    uploaded_ids, _ = load_uploaded_videos()
     videos = []
     
     for f in results.get("files", []):
@@ -156,6 +292,26 @@ def get_videos(limit=20):
     
     return videos
 
+def get_uploaded_history(limit=50):
+    """Get upload history from MongoDB"""
+    db = get_mongo_db()
+    if db is None:
+        return []
+    
+    try:
+        history = db.uploaded_videos.find({}).sort("uploaded_at", -1).limit(limit)
+        result = []
+        for doc in history:
+            result.append({
+                "file_name": doc.get("file_name", ""),
+                "youtube_url": doc.get("youtube_url", ""),
+                "uploaded_at": doc.get("uploaded_at", "").isoformat() if doc.get("uploaded_at") else ""
+            })
+        return result
+    except Exception as e:
+        print(f"Error getting upload history: {e}", file=sys.stderr)
+        return []
+
 def upload_next():
     """Upload the next pending video to YouTube"""
     config = load_config()
@@ -164,7 +320,7 @@ def upload_next():
     drive_service = build("drive", "v3", credentials=creds)
     youtube = build("youtube", "v3", credentials=creds)
     
-    uploaded_ids = load_uploaded_ids()
+    uploaded_ids, uploaded_titles = load_uploaded_videos()
     
     results = drive_service.files().list(
         q=f"'{config['drive_folder_id']}' in parents and mimeType contains 'video/' and trashed = false",
@@ -173,7 +329,11 @@ def upload_next():
         fields="files(id, name, mimeType)"
     ).execute()
     
-    available_videos = [f for f in results.get("files", []) if f["id"] not in uploaded_ids]
+    # Filter out already uploaded videos (by ID or title)
+    available_videos = []
+    for f in results.get("files", []):
+        if f["id"] not in uploaded_ids and f["name"].lower() not in uploaded_titles:
+            available_videos.append(f)
     
     if not available_videos:
         return {"success": False, "error": "No videos left to upload"}
@@ -212,14 +372,16 @@ def upload_next():
     
     response = request.execute()
     video_id = response['id']
+    youtube_url = f"https://www.youtube.com/shorts/{video_id}"
     
-    save_uploaded_id(file_id)
+    # Save to MongoDB
+    save_uploaded_video(file_id, file_name, video_id, youtube_url)
     
     return {
         "success": True,
         "videoId": video_id,
         "fileName": file_name,
-        "youtubeUrl": f"https://www.youtube.com/shorts/{video_id}"
+        "youtubeUrl": youtube_url
     }
 
 def upload_specific(drive_file_id):
@@ -234,6 +396,10 @@ def upload_specific(drive_file_id):
     file = drive_service.files().get(fileId=drive_file_id, fields="id, name, mimeType").execute()
     file_name = file["name"]
     mime_type = file.get("mimeType", "video/mp4")
+    
+    # Check if already uploaded
+    if is_video_uploaded(drive_file_id, file_name):
+        return {"success": False, "error": f"Video '{file_name}' has already been uploaded"}
     
     # Stream from Drive to memory
     request = drive_service.files().get_media(fileId=drive_file_id)
@@ -264,15 +430,48 @@ def upload_specific(drive_file_id):
     
     response = request.execute()
     video_id = response['id']
+    youtube_url = f"https://www.youtube.com/shorts/{video_id}"
     
-    save_uploaded_id(drive_file_id)
+    # Save to MongoDB
+    save_uploaded_video(drive_file_id, file_name, video_id, youtube_url)
     
     return {
         "success": True,
         "videoId": video_id,
         "fileName": file_name,
-        "youtubeUrl": f"https://www.youtube.com/shorts/{video_id}"
+        "youtubeUrl": youtube_url
     }
+
+def switch_account():
+    """Clear token to allow switching YouTube accounts"""
+    # Delete from MongoDB
+    delete_token_from_mongo()
+    
+    # Delete local token file
+    if os.path.exists(TOKEN_FILE):
+        os.remove(TOKEN_FILE)
+    
+    return {"success": True, "message": "Token cleared. Re-authenticate to use a different account."}
+
+def save_new_token(token_json_str):
+    """Save a new token from JSON string"""
+    try:
+        token_data = json.loads(token_json_str)
+        save_token_to_mongo(token_data)
+        return {"success": True, "message": "Token saved to MongoDB"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def get_current_token():
+    """Get current token info (without sensitive data)"""
+    token = get_token_from_mongo()
+    if token:
+        return {
+            "hasToken": True,
+            "account": token.get("account", "Unknown"),
+            "expiry": token.get("expiry", "Unknown")
+        }
+    return {"hasToken": False}
 
 # ------------------------------
 # CLI Interface
@@ -288,6 +487,10 @@ if __name__ == "__main__":
             limit = int(sys.argv[2]) if len(sys.argv) > 2 else 20
             print(json.dumps(get_videos(limit)))
         
+        elif cmd == "history":
+            limit = int(sys.argv[2]) if len(sys.argv) > 2 else 50
+            print(json.dumps(get_uploaded_history(limit)))
+        
         elif cmd == "config":
             print(json.dumps(load_config()))
         
@@ -299,6 +502,17 @@ if __name__ == "__main__":
                 # Upload next pending video
                 result = upload_next()
             print(json.dumps(result))
+        
+        elif cmd == "switch-account":
+            result = switch_account()
+            print(json.dumps(result))
+        
+        elif cmd == "save-token" and len(sys.argv) > 2:
+            result = save_new_token(sys.argv[2])
+            print(json.dumps(result))
+        
+        elif cmd == "token-info":
+            print(json.dumps(get_current_token()))
         
         elif cmd == "set-folder" and len(sys.argv) > 2:
             config = load_config()
