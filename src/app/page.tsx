@@ -10,9 +10,13 @@ import {
   PlayCircle,
   Settings,
   RefreshCw,
-  Zap
+  Zap,
+  X,
+  Save,
+  Link,
+  AlertCircle
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 // Animation variants
 const containerVariants: Variants = {
@@ -54,42 +58,149 @@ interface Video {
   status: "pending" | "uploading" | "uploaded";
 }
 
-export default function Dashboard() {
-  const [videos, setVideos] = useState<Video[]>([
-    { id: "1", name: "anime_edit_001.mp4", size: "2.9 MB", status: "uploaded" },
-    { id: "2", name: "anime_edit_002.mp4", size: "1.4 MB", status: "uploaded" },
-    { id: "3", name: "anime_edit_003.mp4", size: "1.7 MB", status: "pending" },
-    { id: "4", name: "anime_edit_004.mp4", size: "5.1 MB", status: "pending" },
-    { id: "5", name: "anime_edit_005.mp4", size: "5.5 MB", status: "pending" },
-  ]);
-  
-  const [isUploading, setIsUploading] = useState(false);
-  const [stats, setStats] = useState({
-    total: 100,
-    uploaded: 3,
-    pending: 97
-  });
+interface Config {
+  drive_folder_id: string;
+  video_title: string;
+  video_description: string;
+  video_tags: string[];
+}
 
+export default function Dashboard() {
+  const [videos, setVideos] = useState<Video[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
+  const [stats, setStats] = useState({
+    total: 0,
+    uploaded: 0,
+    pending: 0
+  });
+  const [config, setConfig] = useState<Config>({
+    drive_folder_id: "",
+    video_title: "",
+    video_description: "",
+    video_tags: []
+  });
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Fetch stats from API
+  const fetchStats = useCallback(async () => {
+    try {
+      const response = await fetch("/api/stats");
+      const data = await response.json();
+      if (data.success) {
+        setStats(data.stats);
+      }
+    } catch (error) {
+      console.error("Failed to fetch stats:", error);
+    }
+  }, []);
+
+  // Fetch videos from API
+  const fetchVideos = useCallback(async () => {
+    try {
+      const response = await fetch("/api/videos?limit=20");
+      const data = await response.json();
+      if (data.success) {
+        setVideos(data.videos);
+      }
+    } catch (error) {
+      console.error("Failed to fetch videos:", error);
+    }
+  }, []);
+
+  // Fetch config from API
+  const fetchConfig = useCallback(async () => {
+    try {
+      const response = await fetch("/api/config");
+      const data = await response.json();
+      if (data.success) {
+        setConfig(data.config);
+      }
+    } catch (error) {
+      console.error("Failed to fetch config:", error);
+    }
+  }, []);
+
+  // Initial data load
+  useEffect(() => {
+    fetchStats();
+    fetchVideos();
+    fetchConfig();
+  }, [fetchStats, fetchVideos, fetchConfig]);
+
+  // Refresh all data
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await Promise.all([fetchStats(), fetchVideos(), fetchConfig()]);
+    setIsRefreshing(false);
+  };
+
+  // Upload next video
   const handleUpload = async () => {
     setIsUploading(true);
+    setUploadMessage(null);
     
-    // Call the Python backend API
     try {
       const response = await fetch("/api/upload", { method: "POST" });
       const data = await response.json();
       
       if (data.success) {
-        setStats(prev => ({
-          ...prev,
-          uploaded: prev.uploaded + 1,
-          pending: prev.pending - 1
-        }));
+        setUploadMessage({ type: 'success', text: `Uploaded: ${data.fileName}` });
+        // Refresh data after successful upload
+        await Promise.all([fetchStats(), fetchVideos()]);
+      } else {
+        setUploadMessage({ type: 'error', text: data.error || 'Upload failed' });
       }
     } catch (error) {
       console.error("Upload failed:", error);
+      setUploadMessage({ type: 'error', text: 'Upload failed. Check console for details.' });
     }
     
     setIsUploading(false);
+    
+    // Clear message after 5 seconds
+    setTimeout(() => setUploadMessage(null), 5000);
+  };
+
+  // Save config
+  const handleSaveConfig = async (field: string, value: string | string[]) => {
+    setIsSaving(true);
+    try {
+      const response = await fetch("/api/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ field, value })
+      });
+      const data = await response.json();
+      if (data.success) {
+        await fetchConfig();
+      }
+    } catch (error) {
+      console.error("Failed to save config:", error);
+    }
+    setIsSaving(false);
+  };
+
+  // Extract folder ID from Google Drive link
+  const extractFolderId = (input: string): string => {
+    // If it's already just an ID, return it
+    if (!input.includes('/')) return input;
+    
+    // Extract from various Drive URL formats
+    const patterns = [
+      /\/folders\/([a-zA-Z0-9_-]+)/,
+      /id=([a-zA-Z0-9_-]+)/,
+      /\/d\/([a-zA-Z0-9_-]+)/
+    ];
+    
+    for (const pattern of patterns) {
+      const match = input.match(pattern);
+      if (match) return match[1];
+    }
+    
+    return input;
   };
 
   return (
@@ -113,15 +224,177 @@ export default function Dashboard() {
               YT Automation
             </h1>
           </div>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors"
-          >
-            <Settings className="w-5 h-5 text-gray-400" />
-          </motion.button>
+          <div className="flex items-center gap-2">
+            <motion.button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors"
+            >
+              <RefreshCw className={`w-5 h-5 text-gray-400 ${isRefreshing ? 'animate-spin' : ''}`} />
+            </motion.button>
+            <motion.button
+              onClick={() => setShowSettings(true)}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors"
+            >
+              <Settings className="w-5 h-5 text-gray-400" />
+            </motion.button>
+          </div>
         </div>
       </motion.header>
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setShowSettings(false)}
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold">Settings</h2>
+              <button 
+                onClick={() => setShowSettings(false)}
+                className="p-2 rounded-lg hover:bg-gray-800 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              {/* Google Drive Folder */}
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  <Link className="w-4 h-4 inline mr-2" />
+                  Google Drive Folder Link or ID
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={config.drive_folder_id}
+                    onChange={(e) => setConfig(prev => ({ ...prev, drive_folder_id: e.target.value }))}
+                    placeholder="Paste Google Drive folder link or ID"
+                    className="flex-1 px-4 py-3 rounded-xl bg-gray-800 border border-gray-700 focus:border-purple-500 focus:outline-none transition-colors"
+                  />
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => {
+                      const folderId = extractFolderId(config.drive_folder_id);
+                      handleSaveConfig("drive_folder_id", folderId);
+                    }}
+                    disabled={isSaving}
+                    className="px-4 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 transition-colors flex items-center gap-2"
+                  >
+                    <Save className="w-4 h-4" />
+                    Save
+                  </motion.button>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Paste the full Google Drive folder link or just the folder ID
+                </p>
+              </div>
+
+              {/* Video Title */}
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Video Title
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={config.video_title}
+                    onChange={(e) => setConfig(prev => ({ ...prev, video_title: e.target.value }))}
+                    placeholder="Enter video title"
+                    className="flex-1 px-4 py-3 rounded-xl bg-gray-800 border border-gray-700 focus:border-purple-500 focus:outline-none transition-colors"
+                  />
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => handleSaveConfig("video_title", config.video_title)}
+                    disabled={isSaving}
+                    className="px-4 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 transition-colors flex items-center gap-2"
+                  >
+                    <Save className="w-4 h-4" />
+                    Save
+                  </motion.button>
+                </div>
+              </div>
+
+              {/* Video Description */}
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Video Description
+                </label>
+                <div className="flex gap-2">
+                  <textarea
+                    value={config.video_description}
+                    onChange={(e) => setConfig(prev => ({ ...prev, video_description: e.target.value }))}
+                    placeholder="Enter video description"
+                    rows={4}
+                    className="flex-1 px-4 py-3 rounded-xl bg-gray-800 border border-gray-700 focus:border-purple-500 focus:outline-none transition-colors resize-none"
+                  />
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => handleSaveConfig("video_description", config.video_description)}
+                    disabled={isSaving}
+                    className="px-4 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 transition-colors flex items-center gap-2 self-start"
+                  >
+                    <Save className="w-4 h-4" />
+                    Save
+                  </motion.button>
+                </div>
+              </div>
+
+              {/* Video Tags */}
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Video Tags (comma-separated)
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={config.video_tags?.join(", ") || ""}
+                    onChange={(e) => setConfig(prev => ({ 
+                      ...prev, 
+                      video_tags: e.target.value.split(",").map(t => t.trim()).filter(Boolean)
+                    }))}
+                    placeholder="tag1, tag2, tag3"
+                    className="flex-1 px-4 py-3 rounded-xl bg-gray-800 border border-gray-700 focus:border-purple-500 focus:outline-none transition-colors"
+                  />
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => handleSaveConfig("video_tags", config.video_tags)}
+                    disabled={isSaving}
+                    className="px-4 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 transition-colors flex items-center gap-2"
+                  >
+                    <Save className="w-4 h-4" />
+                    Save
+                  </motion.button>
+                </div>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {config.video_tags?.map((tag, i) => (
+                    <span key={i} className="px-2 py-1 rounded bg-purple-500/20 text-purple-300 text-xs">
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 py-8">
@@ -131,6 +404,27 @@ export default function Dashboard() {
           animate="visible"
           className="space-y-8"
         >
+          {/* Upload Message */}
+          {uploadMessage && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className={`p-4 rounded-xl flex items-center gap-3 ${
+                uploadMessage.type === 'success' 
+                  ? 'bg-green-500/20 border border-green-500/30 text-green-400'
+                  : 'bg-red-500/20 border border-red-500/30 text-red-400'
+              }`}
+            >
+              {uploadMessage.type === 'success' ? (
+                <CheckCircle className="w-5 h-5" />
+              ) : (
+                <AlertCircle className="w-5 h-5" />
+              )}
+              {uploadMessage.text}
+            </motion.div>
+          )}
+
           {/* Stats Cards */}
           <motion.div 
             variants={itemVariants}
@@ -194,18 +488,18 @@ export default function Dashboard() {
               <div>
                 <h2 className="text-xl font-bold">Quick Upload</h2>
                 <p className="text-gray-400 text-sm mt-1">
-                  Upload the next video from your Google Drive folder
+                  Upload the next pending video from your Google Drive folder
                 </p>
               </div>
               <motion.button
                 onClick={handleUpload}
-                disabled={isUploading}
+                disabled={isUploading || stats.pending === 0}
                 variants={pulseVariants}
-                animate={!isUploading ? "pulse" : ""}
+                animate={!isUploading && stats.pending > 0 ? "pulse" : ""}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 className={`px-8 py-4 rounded-xl font-semibold flex items-center gap-3 transition-all ${
-                  isUploading 
+                  isUploading || stats.pending === 0
                     ? "bg-gray-700 cursor-not-allowed" 
                     : "bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-500 hover:to-pink-500 shadow-lg shadow-red-500/25"
                 }`}
@@ -214,6 +508,11 @@ export default function Dashboard() {
                   <>
                     <RefreshCw className="w-5 h-5 animate-spin" />
                     Uploading...
+                  </>
+                ) : stats.pending === 0 ? (
+                  <>
+                    <CheckCircle className="w-5 h-5" />
+                    All Uploaded!
                   </>
                 ) : (
                   <>
@@ -239,7 +538,7 @@ export default function Dashboard() {
                   <motion.div
                     initial={{ width: "0%" }}
                     animate={{ width: "100%" }}
-                    transition={{ duration: 3, ease: "linear" }}
+                    transition={{ duration: 30, ease: "linear" }}
                     className="h-full bg-gradient-to-r from-red-600 to-pink-600"
                   />
                 </div>
@@ -252,59 +551,68 @@ export default function Dashboard() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold">Video Queue</h2>
               <motion.button
+                onClick={handleRefresh}
+                disabled={isRefreshing}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 className="px-4 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors text-sm flex items-center gap-2"
               >
-                <RefreshCw className="w-4 h-4" />
+                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                 Refresh
               </motion.button>
             </div>
 
             <div className="space-y-3">
-              {videos.map((video, index) => (
-                <motion.div
-                  key={video.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  whileHover={{ scale: 1.01, x: 5 }}
-                  className="p-4 rounded-xl bg-gray-800/50 border border-gray-700/50 flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className={`p-2 rounded-lg ${
-                      video.status === "uploaded" 
-                        ? "bg-green-500/20" 
-                        : video.status === "uploading"
-                        ? "bg-yellow-500/20"
-                        : "bg-gray-700"
-                    }`}>
-                      {video.status === "uploaded" ? (
-                        <CheckCircle className="w-5 h-5 text-green-400" />
-                      ) : video.status === "uploading" ? (
-                        <RefreshCw className="w-5 h-5 text-yellow-400 animate-spin" />
-                      ) : (
-                        <PlayCircle className="w-5 h-5 text-gray-400" />
-                      )}
+              {videos.length === 0 ? (
+                <div className="p-8 text-center text-gray-500">
+                  <FolderOpen className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>No videos found. Click refresh to load videos from Google Drive.</p>
+                </div>
+              ) : (
+                videos.map((video, index) => (
+                  <motion.div
+                    key={video.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    whileHover={{ scale: 1.01, x: 5 }}
+                    className="p-4 rounded-xl bg-gray-800/50 border border-gray-700/50 flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`p-2 rounded-lg ${
+                        video.status === "uploaded" 
+                          ? "bg-green-500/20" 
+                          : video.status === "uploading"
+                          ? "bg-yellow-500/20"
+                          : "bg-gray-700"
+                      }`}>
+                        {video.status === "uploaded" ? (
+                          <CheckCircle className="w-5 h-5 text-green-400" />
+                        ) : video.status === "uploading" ? (
+                          <RefreshCw className="w-5 h-5 text-yellow-400 animate-spin" />
+                        ) : (
+                          <PlayCircle className="w-5 h-5 text-gray-400" />
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-medium truncate max-w-[200px] md:max-w-none">{video.name}</p>
+                        <p className="text-sm text-gray-500">{video.size}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium">{video.name}</p>
-                      <p className="text-sm text-gray-500">{video.size}</p>
+                    <div className="flex items-center gap-3">
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        video.status === "uploaded"
+                          ? "bg-green-500/20 text-green-400"
+                          : video.status === "uploading"
+                          ? "bg-yellow-500/20 text-yellow-400"
+                          : "bg-gray-700 text-gray-400"
+                      }`}>
+                        {video.status === "uploaded" ? "Uploaded" : video.status === "uploading" ? "Uploading" : "Pending"}
+                      </span>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      video.status === "uploaded"
-                        ? "bg-green-500/20 text-green-400"
-                        : video.status === "uploading"
-                        ? "bg-yellow-500/20 text-yellow-400"
-                        : "bg-gray-700 text-gray-400"
-                    }`}>
-                      {video.status === "uploaded" ? "Uploaded" : video.status === "uploading" ? "Uploading" : "Pending"}
-                    </span>
-                  </div>
-                </motion.div>
-              ))}
+                  </motion.div>
+                ))
+              )}
             </div>
           </motion.div>
 
@@ -313,27 +621,41 @@ export default function Dashboard() {
             variants={itemVariants}
             className="p-6 rounded-2xl bg-gradient-to-br from-purple-900/20 to-pink-900/20 border border-purple-800/30"
           >
-            <div className="flex items-center gap-3 mb-4">
-              <Zap className="w-5 h-5 text-purple-400" />
-              <h3 className="font-bold">Upload Settings</h3>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <Zap className="w-5 h-5 text-purple-400" />
+                <h3 className="font-bold">Upload Settings</h3>
+              </div>
+              <motion.button
+                onClick={() => setShowSettings(true)}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="px-3 py-1 rounded-lg bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 text-sm transition-colors"
+              >
+                Edit
+              </motion.button>
             </div>
             <div className="grid md:grid-cols-2 gap-4 text-sm">
               <div className="p-3 rounded-lg bg-gray-800/50">
-                <p className="text-gray-400">Title</p>
-                <p className="font-medium mt-1">Anime Edits #Shorts</p>
+                <p className="text-gray-400">Drive Folder</p>
+                <p className="font-medium mt-1 truncate">{config.drive_folder_id || "Not set"}</p>
               </div>
               <div className="p-3 rounded-lg bg-gray-800/50">
-                <p className="text-gray-400">Category</p>
-                <p className="font-medium mt-1">Entertainment</p>
+                <p className="text-gray-400">Title</p>
+                <p className="font-medium mt-1">{config.video_title || "Not set"}</p>
               </div>
               <div className="p-3 rounded-lg bg-gray-800/50 md:col-span-2">
                 <p className="text-gray-400">Tags</p>
                 <div className="flex flex-wrap gap-2 mt-2">
-                  {["AnimeEdits", "AnimeEdit", "OtakuVibes", "AnimeLovers", "Shorts"].map((tag) => (
-                    <span key={tag} className="px-2 py-1 rounded bg-purple-500/20 text-purple-300 text-xs">
-                      #{tag}
-                    </span>
-                  ))}
+                  {config.video_tags?.length > 0 ? (
+                    config.video_tags.map((tag) => (
+                      <span key={tag} className="px-2 py-1 rounded bg-purple-500/20 text-purple-300 text-xs">
+                        #{tag}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-gray-500">No tags set</span>
+                  )}
                 </div>
               </div>
             </div>
