@@ -487,8 +487,11 @@ def upload_specific(drive_file_id):
 
 def switch_account():
     """Clear token to allow switching YouTube accounts"""
-    # Delete from MongoDB
-    delete_token_from_mongo()
+    # Delete from MongoDB (don't wait if it fails)
+    try:
+        delete_token_from_mongo()
+    except:
+        pass
     
     # Delete local token file
     if os.path.exists(TOKEN_FILE):

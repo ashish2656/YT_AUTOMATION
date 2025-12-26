@@ -3,7 +3,7 @@ import { spawn } from "child_process";
 import path from "path";
 import fs from "fs";
 
-function runPythonCommand(args: string[]): Promise<string> {
+function runPythonCommand(args: string[], timeoutMs = 30000): Promise<string> {
   return new Promise((resolve, reject) => {
     const pythonDir = path.join(process.cwd(), "python");
     const venvPython = path.join(pythonDir, "venv", "bin", "python3");
@@ -18,6 +18,12 @@ function runPythonCommand(args: string[]): Promise<string> {
     let stdout = "";
     let stderr = "";
 
+    // Add timeout
+    const timeout = setTimeout(() => {
+      proc.kill();
+      reject(new Error("Command timed out"));
+    }, timeoutMs);
+
     proc.stdout.on("data", (data) => {
       stdout += data.toString();
     });
@@ -27,6 +33,7 @@ function runPythonCommand(args: string[]): Promise<string> {
     });
 
     proc.on("close", (code) => {
+      clearTimeout(timeout);
       if (code !== 0) {
         reject(new Error(`Command failed: ${stderr || stdout}`));
       } else {
