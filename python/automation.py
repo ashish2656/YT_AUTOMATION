@@ -41,14 +41,32 @@ def get_mongo_db():
         print("Warning: MONGO_URI not set, using local file fallback", file=sys.stderr)
         return None
     try:
-        client = MongoClient(MONGO_URI)
+        # Add connection timeout to prevent hanging
+        client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000, connectTimeoutMS=5000)
         db = client.yt_automation
-        # Test connection
+        # Test connection with timeout
         client.admin.command('ping')
         return db
     except Exception as e:
         print(f"MongoDB connection error: {e}", file=sys.stderr)
         return None
+
+# Fallback to local file tracking if MongoDB fails
+UPLOADED_TRACKER = os.path.join(SCRIPT_DIR, "uploaded_videos.json")
+
+def load_uploaded_ids_local():
+    """Load uploaded IDs from local file (fallback)"""
+    if os.path.exists(UPLOADED_TRACKER):
+        with open(UPLOADED_TRACKER, "r") as f:
+            return set(json.load(f))
+    return set()
+
+def save_uploaded_id_local(video_id):
+    """Save uploaded ID to local file (fallback)"""
+    uploaded_ids = load_uploaded_ids_local()
+    uploaded_ids.add(video_id)
+    with open(UPLOADED_TRACKER, "w") as f:
+        json.dump(list(uploaded_ids), f)
 
 DEFAULT_CONFIG = {
     "client_id": os.environ.get("GOOGLE_CLIENT_ID", ""),
@@ -81,10 +99,12 @@ def save_config(config):
 # MongoDB - Uploaded Videos Tracking
 # ------------------------------
 def load_uploaded_videos():
-    """Load uploaded videos from MongoDB"""
+    """Load uploaded videos from MongoDB with local fallback"""
     db = get_mongo_db()
     if db is None:
-        return set(), {}
+        # Fallback to local file
+        local_ids = load_uploaded_ids_local()
+        return local_ids, {}
     
     try:
         uploaded = db.uploaded_videos.find({})
@@ -98,7 +118,9 @@ def load_uploaded_videos():
         return ids, titles
     except Exception as e:
         print(f"Error loading uploaded videos: {e}", file=sys.stderr)
-        return set(), {}
+        # Fallback to local file
+        local_ids = load_uploaded_ids_local()
+        return local_ids, {}
 
 def save_uploaded_video(drive_file_id, file_name, youtube_video_id, youtube_url):
     """Save uploaded video to MongoDB"""
