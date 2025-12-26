@@ -35,20 +35,31 @@ load_env()
 # MongoDB Connection
 MONGO_URI = os.environ.get("MONGO_URI", "mongodb+srv://ajyadodiya2003_db_user:AnPvBaCyJBI3XFp5@yt-automation.q12aqvq.mongodb.net/yt_automation?retryWrites=true&w=majority&appName=YT-Automation")
 
+# Global MongoDB client (cached)
+_mongo_client = None
+_mongo_db = None
+
 def get_mongo_db():
-    """Get MongoDB database connection"""
+    """Get MongoDB database connection with caching"""
+    global _mongo_client, _mongo_db
+    
+    if _mongo_db is not None:
+        return _mongo_db
+        
     if not MONGO_URI:
         print("Warning: MONGO_URI not set, using local file fallback", file=sys.stderr)
         return None
     try:
-        # Add connection timeout to prevent hanging
-        client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000, connectTimeoutMS=5000)
-        db = client.yt_automation
+        # Add connection timeout to prevent hanging (reduced to 3 seconds)
+        _mongo_client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=3000, connectTimeoutMS=3000, socketTimeoutMS=3000)
+        _mongo_db = _mongo_client.yt_automation
         # Test connection with timeout
-        client.admin.command('ping')
-        return db
+        _mongo_client.admin.command('ping')
+        return _mongo_db
     except Exception as e:
         print(f"MongoDB connection error: {e}", file=sys.stderr)
+        _mongo_client = None
+        _mongo_db = None
         return None
 
 # Fallback to local file tracking if MongoDB fails
