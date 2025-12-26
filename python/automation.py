@@ -32,9 +32,8 @@ def load_env():
 
 load_env()
 
-# MongoDB Connection - Set MONGO_URI environment variable with your connection string
-# Format: mongodb+srv://username:password@cluster.xxxxx.mongodb.net/yt_automation?retryWrites=true&w=majority
-MONGO_URI = os.environ.get("MONGO_URI", "")
+# MongoDB Connection
+MONGO_URI = os.environ.get("MONGO_URI", "mongodb+srv://ajyadodiya2003_db_user:AnPvBaCyJBI3XFp5@yt-automation.q12aqvq.mongodb.net/yt_automation?retryWrites=true&w=majority&appName=YT-Automation")
 
 def get_mongo_db():
     """Get MongoDB database connection"""
