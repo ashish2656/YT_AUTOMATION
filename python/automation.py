@@ -279,18 +279,29 @@ def get_credentials(config):
 # API Functions
 # ------------------------------
 def get_stats():
-    """Get upload statistics from Google Drive"""
+    """Get upload statistics from Google Drive (limited count for performance)"""
     config = load_config()
     creds = get_credentials(config)
     drive_service = build("drive", "v3", credentials=creds)
     
-    results = drive_service.files().list(
-        q=f"'{config['drive_folder_id']}' in parents and mimeType contains 'video/' and trashed = false",
-        pageSize=1000,
-        fields="files(id)"
-    ).execute()
+    # Only count up to 100 files for performance, use pageToken for actual count
+    total = 0
+    page_token = None
     
-    total = len(results.get("files", []))
+    while True:
+        results = drive_service.files().list(
+            q=f"'{config['drive_folder_id']}' in parents and mimeType contains 'video/' and trashed = false",
+            pageSize=100,
+            pageToken=page_token,
+            fields="nextPageToken, files(id)"
+        ).execute()
+        
+        total += len(results.get("files", []))
+        page_token = results.get("nextPageToken")
+        
+        if not page_token:
+            break
+    
     uploaded_ids, _ = load_uploaded_videos()
     uploaded = len(uploaded_ids)
     
