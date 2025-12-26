@@ -1,0 +1,34 @@
+import { NextResponse } from "next/server";
+import { exec } from "child_process";
+import { promisify } from "util";
+import path from "path";
+
+const execAsync = promisify(exec);
+const PYTHON_DIR = path.join(process.cwd(), "python");
+const PYTHON_BIN = path.join(PYTHON_DIR, "venv", "bin", "python3");
+
+export async function GET() {
+  try {
+    // Run Python script to get stats from Google Drive
+    const { stdout } = await execAsync(
+      `"${PYTHON_BIN}" "${path.join(PYTHON_DIR, "automation.py")}" stats`
+    );
+
+    const stats = JSON.parse(stdout.trim());
+
+    return NextResponse.json({
+      success: true,
+      stats: {
+        total: stats.total,
+        uploaded: stats.uploaded,
+        pending: stats.pending
+      }
+    });
+  } catch (error) {
+    console.error("Failed to get stats:", error);
+    return NextResponse.json(
+      { success: false, error: "Failed to get stats" },
+      { status: 500 }
+    );
+  }
+}

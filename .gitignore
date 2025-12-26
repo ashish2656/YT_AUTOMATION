@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+# Python automation
+python/venv/
+python/token.json
+python/config.json
+python/uploaded_videos.json
+python/__pycache__/
+python/.env
