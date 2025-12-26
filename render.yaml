@@ -13,3 +13,20 @@ services:
         sync: false
       - key: DRIVE_FOLDER_ID
         sync: false
+      - key: GOOGLE_TOKEN_JSON
+        sync: false
+      - key: CRON_SECRET
+        generateValue: true
+
+  - type: cron
+    name: yt-daily-upload
+    runtime: node
+    schedule: "0 18 * * *"
+    buildCommand: echo "Using web service"
+    startCommand: curl -X GET "https://yt-dashboard.onrender.com/api/cron" -H "Authorization: Bearer $CRON_SECRET"
+    envVars:
+      - key: CRON_SECRET
+        fromService:
+          name: yt-dashboard
+          type: web
+          envVarKey: CRON_SECRET
