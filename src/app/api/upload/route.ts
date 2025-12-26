@@ -2,10 +2,12 @@ import { NextResponse } from "next/server";
 import { exec } from "child_process";
 import { promisify } from "util";
 import path from "path";
+import { existsSync } from "fs";
 
 const execAsync = promisify(exec);
 const PYTHON_DIR = path.join(process.cwd(), "python");
-const PYTHON_BIN = path.join(PYTHON_DIR, "venv", "bin", "python3");
+const VENV_PYTHON = path.join(PYTHON_DIR, "venv", "bin", "python3");
+const PYTHON_BIN = existsSync(VENV_PYTHON) ? VENV_PYTHON : "python3";
 
 export async function POST(request: Request) {
   try {
@@ -19,9 +21,10 @@ export async function POST(request: Request) {
     }
 
     // Run the Python upload script
+    const scriptPath = path.join(PYTHON_DIR, "automation.py");
     const command = videoFileId
-      ? `"${PYTHON_BIN}" "${path.join(PYTHON_DIR, "automation.py")}" upload "${videoFileId}"`
-      : `"${PYTHON_BIN}" "${path.join(PYTHON_DIR, "automation.py")}" upload`;
+      ? `"${PYTHON_BIN}" "${scriptPath}" upload "${videoFileId}"`
+      : `"${PYTHON_BIN}" "${scriptPath}" upload`;
 
     const { stdout, stderr } = await execAsync(command);
 

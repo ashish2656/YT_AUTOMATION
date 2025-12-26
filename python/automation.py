@@ -74,26 +74,38 @@ def save_uploaded_id(video_id):
 # Authentication
 # ------------------------------
 def get_credentials(config):
+    # First try to load from environment variable (for cloud deployment)
+    token_json = os.environ.get("GOOGLE_TOKEN_JSON")
+    if token_json:
+        try:
+            token_data = json.loads(token_json)
+            creds = Credentials.from_authorized_user_info(token_data, SCOPES)
+            return creds
+        except Exception as e:
+            print(f"Failed to load token from env: {e}", file=sys.stderr)
+    
+    # Then try to load from file
     if os.path.exists(TOKEN_FILE):
         creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
         return creds
-    else:
-        flow = InstalledAppFlow.from_client_config(
-            {
-                "installed": {
-                    "client_id": config["client_id"],
-                    "client_secret": config["client_secret"],
-                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                    "token_uri": "https://oauth2.googleapis.com/token"
-                }
-            },
-            SCOPES
-        )
-        creds = flow.run_local_server(port=0)
-        with open(TOKEN_FILE, "w") as f:
-            f.write(creds.to_json())
-        print("Authentication complete!")
-        return creds
+    
+    # If no token exists, try to authenticate (only works locally)
+    flow = InstalledAppFlow.from_client_config(
+        {
+            "installed": {
+                "client_id": config["client_id"],
+                "client_secret": config["client_secret"],
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token"
+            }
+        },
+        SCOPES
+    )
+    creds = flow.run_local_server(port=0)
+    with open(TOKEN_FILE, "w") as f:
+        f.write(creds.to_json())
+    print("Authentication complete!")
+    return creds
 
 # ------------------------------
 # API Functions
