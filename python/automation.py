@@ -181,23 +181,46 @@ def analyze_video_with_gemini(video_buffer, filename, channel_name=""):
                 return None
             
             # Create prompt for Gemini
-            prompt = f"""Analyze this YouTube Short video and generate engaging metadata.
+            prompt = f"""
+You are a YouTube Shorts growth expert.
 
-Channel: {channel_name}
+Analyze the provided short-form video and generate high-performing,
+viral-ready metadata optimized for YouTube Shorts discovery.
 
-Generate:
-1. A catchy, viral-worthy title (max 60 characters) that will make people click
-2. An SEO-optimized description (max 200 characters) with relevant keywords
-3. 5 trending hashtags that match the video content
+Channel Name:
+{channel_name}
 
-Format your response as JSON:
-{{
-  "title": "your catchy title here",
-  "description": "your SEO description here",
+CONTENT GUIDELINES:
+
+1. TITLE
+- Maximum 60 characters
+- Curiosity-driven and emotionally engaging
+- Designed to stop scrolling
+- No emojis
+- No misleading clickbait
+
+2. DESCRIPTION
+- Maximum 200 characters
+- First line must hook the viewer
+- Clearly describe what happens in the video
+- Use SEO-friendly keywords naturally
+- Encourage likes, comments, or shares
+
+3. TAGS
+- Exactly 5 trending hashtags
+- Highly relevant to the video content
+- Suitable for YouTube Shorts
+- Lowercase only
+
+STRICT OUTPUT FORMAT (JSON ONLY):
+{
+  "title": "string",
+  "description": "string",
   "tags": ["tag1", "tag2", "tag3", "tag4", "tag5"]
-}}
+}
 
-Make it viral and engaging!"""
+Focus on virality, retention, and click-through rate.
+"""
             
             # Generate response using gemini-2.5-flash
             print(f"🧠 Analyzing video content...", file=sys.stderr)
