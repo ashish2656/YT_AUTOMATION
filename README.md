@@ -18,28 +18,31 @@ An automated YouTube Shorts upload system with multi-channel support, AI-powered
 
 ## 🏗️ Architecture
 
-\`\`\`
-┌─────────────────────────────────────────────────────────────┐
-│                    Next.js Frontend                          │
-│                   (Dashboard UI)                             │
-└─────────────────────┬───────────────────────────────────────┘
-                      │ API Routes
-┌─────────────────────▼───────────────────────────────────────┐
-│                  Python Backend                              │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
-│  │ Google Drive│  │ YouTube API │  │ Gemini/OpenAI AI    │  │
-│  │   Reader    │  │  Uploader   │  │ Metadata Generator  │  │
-│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
-└─────────────────────┬───────────────────────────────────────┘
-                      │
-┌─────────────────────▼───────────────────────────────────────┐
-│                   MongoDB Atlas                              │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
-│  │  Channels   │  │  Uploaded   │  │    Upload History   │  │
-│  │   Config    │  │   Videos    │  │                     │  │
-│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
-\`\`\`
+```
++---------------------------+
+|    Next.js Frontend       |
+|     (Dashboard UI)        |
++-----------+---------------+
+            |
+            | API Routes
+            v
++-----------+---------------+
+|     Python Backend        |
+|  +-------+ +-------+ +--+ |
+|  | Drive | |YouTube| |AI| |
+|  |Reader | |Upload | |  | |
+|  +-------+ +-------+ +--+ |
++-----------+---------------+
+            |
+            v
++-----------+---------------+
+|      MongoDB Atlas        |
+| +--------+ +--------+     |
+| |Channels| |Uploaded|     |
+| | Config | | Videos |     |
+| +--------+ +--------+     |
++---------------------------+
+```
 
 ## 🚀 Quick Start
 
@@ -53,7 +56,7 @@ An automated YouTube Shorts upload system with multi-channel support, AI-powered
 
 ### Installation
 
-\`\`\`bash
+```bash
 # Clone the repository
 git clone https://github.com/ashish2656/YT_AUTOMATION.git
 cd YT_AUTOMATION
@@ -70,13 +73,13 @@ cd ..
 
 # Start development server
 npm run dev
-\`\`\`
+```
 
 ### Environment Setup
 
-Create \`python/.env\` file:
+Create `python/.env` file:
 
-\`\`\`env
+```env
 # MongoDB Connection
 MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/yt_automation
 
@@ -89,16 +92,16 @@ GOOGLE_TOKEN_ACCOUNT4_JSON='{"token": "...", "refresh_token": "...", ...}'
 # AI Keys
 GEMINI_API_KEY=your_gemini_api_key
 OPENAI_API_KEY=your_openai_api_key  # Optional fallback
-\`\`\`
+```
 
 ### Generate YouTube Tokens
 
-\`\`\`bash
+```bash
 cd python
 python generate_token.py
 # Follow the OAuth flow in your browser
 # Token will be saved to token_accountX.json
-\`\`\`
+```
 
 ## 📱 Dashboard Features
 
@@ -114,7 +117,7 @@ python generate_token.py
 - View upload history and statistics
 
 ### AI Metadata Generation
-When \`use_ai_metadata\` is enabled for a channel:
+When `use_ai_metadata` is enabled for a channel:
 1. Video is analyzed by Gemini AI (or OpenAI fallback)
 2. AI generates viral-worthy title (max 60 chars)
 3. AI creates SEO-optimized description
@@ -146,7 +149,7 @@ Automatic uploads run 3x daily at optimal viewing times:
 
 ## 📁 Project Structure
 
-\`\`\`
+```
 YT_AUTOMATION/
 ├── src/
 │   ├── app/
@@ -167,7 +170,7 @@ YT_AUTOMATION/
 │   └── requirements.txt      # Python dependencies
 ├── railway.toml              # Railway deployment config
 └── nixpacks.toml             # Build configuration
-\`\`\`
+```
 
 ## 🚀 Deployment (Railway)
 
@@ -177,12 +180,12 @@ YT_AUTOMATION/
 3. New Project → Deploy from GitHub → Select this repo
 
 ### Step 2: Add Environment Variables
-Add all variables from \`python/.env\` to Railway's Variables tab.
+Add all variables from `python/.env` to Railway's Variables tab.
 
 ### Step 3: Configure Inngest
 1. Create account at [inngest.com](https://inngest.com)
 2. Get Event Key and Signing Key
-3. Add webhook URL: \`https://your-app.railway.app/api/inngest\`
+3. Add webhook URL: `https://your-app.railway.app/api/inngest`
 
 ### Step 4: Deploy
 Railway auto-deploys on git push. First deploy takes ~5-10 minutes.
@@ -191,13 +194,13 @@ Railway auto-deploys on git push. First deploy takes ~5-10 minutes.
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| \`/api/channels\` | GET | List all channels |
-| \`/api/channels\` | POST | Create/update/delete channel |
-| \`/api/upload\` | POST | Upload video |
-| \`/api/stats\` | GET | Get upload statistics |
-| \`/api/videos\` | GET | List videos from Drive |
-| \`/api/history\` | GET | Upload history |
-| \`/api/inngest\` | POST | Inngest webhook |
+| `/api/channels` | GET | List all channels |
+| `/api/channels` | POST | Create/update/delete channel |
+| `/api/upload` | POST | Upload video |
+| `/api/stats` | GET | Get upload statistics |
+| `/api/videos` | GET | List videos from Drive |
+| `/api/history` | GET | Upload history |
+| `/api/inngest` | POST | Inngest webhook |
 
 ## ⚠️ YouTube API Quota
 
@@ -217,16 +220,16 @@ For more uploads, create additional Google Cloud projects.
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create feature branch (\`git checkout -b feature/amazing\`)
-3. Commit changes (\`git commit -m 'Add amazing feature'\`)
-4. Push to branch (\`git push origin feature/amazing\`)
+2. Create feature branch (`git checkout -b feature/amazing`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing`)
 5. Open Pull Request
 
 ## 📄 License
 
 MIT License - feel free to use for personal or commercial projects.
 
-## 👨‍💻 Author
+## 👨‍�� Author
 
 **Ashish Dodiya**
 - GitHub: [@ashish2656](https://github.com/ashish2656)
