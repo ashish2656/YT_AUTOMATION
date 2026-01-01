@@ -7,8 +7,8 @@ nixPkgs = ["nodejs_20", "python313", "gcc"]
 [phases.install]
 cmds = [
     "npm ci",
-    "python3 -m ensurepip --upgrade",
-    "python3 -m pip install --user -r python/requirements.txt"
+    "python3 -m venv /app/venv",
+    "/app/venv/bin/pip install -r python/requirements.txt"
 ]
 
 [phases.build]

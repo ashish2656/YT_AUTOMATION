@@ -8,8 +8,9 @@ const execAsync = promisify(exec);
 
 function getPythonPaths() {
   const PYTHON_DIR = path.join(process.cwd(), "python");
-  const VENV_PYTHON = path.join(PYTHON_DIR, "venv", "bin", "python3");
-  const PYTHON_BIN = existsSync(VENV_PYTHON) ? VENV_PYTHON : "python3";
+  const LOCAL_VENV = path.join(PYTHON_DIR, "venv", "bin", "python3");
+  const RAILWAY_VENV = "/app/venv/bin/python3";
+  const PYTHON_BIN = existsSync(LOCAL_VENV) ? LOCAL_VENV : (existsSync(RAILWAY_VENV) ? RAILWAY_VENV : "python3");
   const scriptPath = path.join(PYTHON_DIR, "automation.py");
   return { PYTHON_BIN, scriptPath };
 }
