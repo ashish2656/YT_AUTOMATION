@@ -46,3 +46,4 @@ python/config.json
 python/uploaded_videos.json
 python/__pycache__/
 python/.envpython/token_account*.json
+python/token_account*.json
