@@ -2,12 +2,13 @@
 # Supports both Node.js and Python
 
 [phases.setup]
-nixPkgs = ["nodejs_20", "python313", "gcc", "pip"]
+nixPkgs = ["nodejs_20", "python313", "gcc"]
 
 [phases.install]
 cmds = [
     "npm ci",
-    "cd python && python3 -m pip install --user -r requirements.txt"
+    "python3 -m ensurepip --upgrade",
+    "python3 -m pip install --user -r python/requirements.txt"
 ]
 
 [phases.build]
