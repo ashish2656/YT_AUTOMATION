@@ -14,14 +14,17 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       channels: channelDocs.map(ch => ({
-        channel_id: ch.channel_id,
-        channel_name: ch.channel_name,
-        drive_folder_url: ch.drive_folder_url,
-        enabled: ch.enabled,
-        title_template: ch.title_template,
-        description_template: ch.description_template,
-        tags: ch.tags,
-        category_id: ch.category_id
+        id: ch.channel_id,
+        name: ch.channel_name,
+        drive_folder_id: ch.drive_folder_id || ch.drive_folder_url,
+        youtube_account: ch.channel_id,
+        enabled: ch.enabled ?? true,
+        categories: ch.categories || [],
+        templates: {
+          title: ch.title_template || '{trending_title}',
+          description: ch.description_template || '{trending_description}'
+        },
+        uploaded_count: ch.uploaded_count || 0
       }))
     });
   } catch (error) {
