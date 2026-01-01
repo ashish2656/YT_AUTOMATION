@@ -1,36 +1,34 @@
 import { NextResponse } from "next/server";
-import { exec } from "child_process";
-import { promisify } from "util";
-import path from "path";
-import { existsSync } from "fs";
+import { getDatabase } from "@/lib/mongodb";
 
-const execAsync = promisify(exec);
-
-function getPythonPaths() {
-  const PYTHON_DIR = path.join(process.cwd(), "python");
-  const LOCAL_VENV = path.join(PYTHON_DIR, "venv", "bin", "python3");
-  const RAILWAY_VENV = "/app/venv/bin/python3";
-  const PYTHON_BIN = existsSync(LOCAL_VENV) ? LOCAL_VENV : (existsSync(RAILWAY_VENV) ? RAILWAY_VENV : "python3");
-  const scriptPath = path.join(PYTHON_DIR, "automation.py");
-  return { PYTHON_BIN, scriptPath };
-}
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const { PYTHON_BIN, scriptPath } = getPythonPaths();
-    // Run Python script to get stats from Google Drive
-    const { stdout } = await execAsync(
-      `"${PYTHON_BIN}" "${scriptPath}" stats`
-    );
-
-    const stats = JSON.parse(stdout.trim());
+    const db = await getDatabase();
+    const history = db.collection('upload_history');
+    const channels = db.collection('channels');
+    
+    // Get all channels
+    const channelDocs = await channels.find({}).toArray();
+    
+    // Get uploaded count from history
+    const uploadedCount = await history.countDocuments({});
+    
+    // Get uploads per channel
+    const uploadsByChannel: Record<string, number> = {};
+    for (const channel of channelDocs) {
+      const count = await history.countDocuments({ channel_id: channel.channel_id });
+      uploadsByChannel[channel.channel_id] = count;
+    }
 
     return NextResponse.json({
       success: true,
       stats: {
-        total: stats.total,
-        uploaded: stats.uploaded,
-        pending: stats.pending
+        total: "See GitHub Actions",
+        uploaded: uploadedCount,
+        pending: "See GitHub Actions",
+        uploadsByChannel
       }
     });
   } catch (error) {

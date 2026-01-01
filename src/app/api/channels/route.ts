@@ -1,31 +1,29 @@
 import { NextResponse } from "next/server";
-import { exec } from "child_process";
-import { promisify } from "util";
-import path from "path";
-import { existsSync } from "fs";
+import { getDatabase } from "@/lib/mongodb";
 
-const execAsync = promisify(exec);
-
-function getPythonPaths() {
-  const PYTHON_DIR = path.join(process.cwd(), "python");
-  const LOCAL_VENV = path.join(PYTHON_DIR, "venv", "bin", "python3");
-  const RAILWAY_VENV = "/app/venv/bin/python3";
-  const PYTHON_BIN = existsSync(LOCAL_VENV) ? LOCAL_VENV : (existsSync(RAILWAY_VENV) ? RAILWAY_VENV : "python3");
-  const scriptPath = path.join(PYTHON_DIR, "automation.py");
-  return { PYTHON_BIN, scriptPath };
-}
+export const dynamic = 'force-dynamic';
 
 // GET - Get all channels configuration
 export async function GET() {
   try {
-    const { PYTHON_BIN, scriptPath } = getPythonPaths();
-    const { stdout } = await execAsync(
-      `"${PYTHON_BIN}" "${scriptPath}" channels list`
-    );
-
-    const result = JSON.parse(stdout.trim());
-
-    return NextResponse.json(result);
+    const db = await getDatabase();
+    const channels = db.collection('channels');
+    
+    const channelDocs = await channels.find({}).toArray();
+    
+    return NextResponse.json({
+      success: true,
+      channels: channelDocs.map(ch => ({
+        channel_id: ch.channel_id,
+        channel_name: ch.channel_name,
+        drive_folder_url: ch.drive_folder_url,
+        enabled: ch.enabled,
+        title_template: ch.title_template,
+        description_template: ch.description_template,
+        tags: ch.tags,
+        category_id: ch.category_id
+      }))
+    });
   } catch (error) {
     console.error("Failed to get channels:", error);
     return NextResponse.json(
@@ -38,19 +36,32 @@ export async function GET() {
 // POST - Update channel configuration
 export async function POST(request: Request) {
   try {
-    const { PYTHON_BIN, scriptPath } = getPythonPaths();
+    const db = await getDatabase();
+    const channels = db.collection('channels');
+    
     const body = await request.json();
     const { action, channelId, channelData } = body;
     
-    let command = "";
     if (action === "update") {
-      command = `"${PYTHON_BIN}" "${scriptPath}" channels update ${channelId} '${JSON.stringify(channelData)}'`;
+      await channels.updateOne(
+        { channel_id: channelId },
+        { $set: channelData }
+      );
     } else if (action === "create") {
-      command = `"${PYTHON_BIN}" "${scriptPath}" channels create '${JSON.stringify(channelData)}'`;
+      await channels.insertOne({
+        ...channelData,
+        created_at: new Date().toISOString()
+      });
     } else if (action === "delete") {
-      command = `"${PYTHON_BIN}" "${scriptPath}" channels delete ${channelId}`;
+      await channels.deleteOne({ channel_id: channelId });
     } else if (action === "toggle") {
-      command = `"${PYTHON_BIN}" "${scriptPath}" channels toggle ${channelId}`;
+      const channel = await channels.findOne({ channel_id: channelId });
+      if (channel) {
+        await channels.updateOne(
+          { channel_id: channelId },
+          { $set: { enabled: !channel.enabled } }
+        );
+      }
     } else {
       return NextResponse.json(
         { success: false, error: "Invalid action" },
@@ -58,10 +69,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { stdout } = await execAsync(command);
-    const result = JSON.parse(stdout.trim());
-
-    return NextResponse.json(result);
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Failed to update channels:", error);
     return NextResponse.json(

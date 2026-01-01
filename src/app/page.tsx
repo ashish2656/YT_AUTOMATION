@@ -185,8 +185,12 @@ export default function Dashboard() {
     try {
       const response = await fetch("/api/history?limit=20");
       const data = await response.json();
-      if (Array.isArray(data)) {
-        setUploadHistory(data);
+      if (data.success && Array.isArray(data.history)) {
+        setUploadHistory(data.history.map((h: { title?: string; file_name?: string; youtube_url?: string; uploaded_at?: string }) => ({
+          file_name: h.title || h.file_name || 'Unknown',
+          youtube_url: h.youtube_url || '',
+          uploaded_at: h.uploaded_at || ''
+        })));
       }
     } catch (error) {
       console.error("Failed to fetch history:", error);
@@ -386,80 +390,23 @@ export default function Dashboard() {
     setIsSaving(false);
   };
 
-  // Upload next video
+  // Upload next video - Not available on Vercel, show message
   const handleUpload = async () => {
-    if (!selectedChannel) {
-      setUploadMessage({ type: 'error', text: 'Please select a channel first' });
-      return;
-    }
-
-    setIsUploading(true);
-    setUploadMessage(null);
-    
-    try {
-      const response = await fetch("/api/upload", { 
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ channelId: selectedChannel })
-      });
-      const data = await response.json();
-      
-      if (data.success) {
-        setUploadMessage({ type: 'success', text: `Uploaded: ${data.fileName} to ${data.channel}` });
-        // Refresh data after successful upload
-        await Promise.all([fetchStats(), fetchVideos(selectedChannel)]);
-      } else {
-        setUploadMessage({ type: 'error', text: data.error || 'Upload failed' });
-      }
-    } catch (error) {
-      console.error("Upload failed:", error);
-      setUploadMessage({ type: 'error', text: 'Upload failed. Check console for details.' });
-    }
-    
-    setIsUploading(false);
-    
-    // Clear message after 5 seconds
-    setTimeout(() => setUploadMessage(null), 5000);
+    setUploadMessage({ 
+      type: 'error', 
+      text: 'Manual uploads not available. Uploads run automatically via GitHub Actions at 8AM, 1PM, 8PM IST. Go to GitHub → Actions tab to trigger manually.' 
+    });
+    setTimeout(() => setUploadMessage(null), 8000);
   };
 
-  // Upload from all channels
+  // Upload from all channels - Not available on Vercel
   const [isUploadingAll, setIsUploadingAll] = useState(false);
   const handleUploadAll = async () => {
-    setIsUploadingAll(true);
-    setUploadMessage(null);
-    
-    try {
-      const response = await fetch("/api/upload", { 
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uploadAll: true })
-      });
-      const data = await response.json();
-      
-      if (data.success) {
-        const successCount = data.success_count || 0;
-        const totalChannels = data.total_channels || 0;
-        setUploadMessage({ 
-          type: 'success', 
-          text: `Uploaded ${successCount}/${totalChannels} channels successfully!` 
-        });
-        // Refresh data after successful upload
-        await Promise.all([fetchStats(), fetchChannels()]);
-        if (selectedChannel) {
-          await fetchVideos(selectedChannel);
-        }
-      } else {
-        setUploadMessage({ type: 'error', text: data.error || 'Upload all failed' });
-      }
-    } catch (error) {
-      console.error("Upload all failed:", error);
-      setUploadMessage({ type: 'error', text: 'Upload all failed. Check console for details.' });
-    }
-    
-    setIsUploadingAll(false);
-    
-    // Clear message after 5 seconds
-    setTimeout(() => setUploadMessage(null), 5000);
+    setUploadMessage({ 
+      type: 'error', 
+      text: 'Manual uploads not available. Uploads run automatically via GitHub Actions at 8AM, 1PM, 8PM IST. Go to GitHub → Actions tab to trigger manually.' 
+    });
+    setTimeout(() => setUploadMessage(null), 8000);
   };
 
   // Save config
