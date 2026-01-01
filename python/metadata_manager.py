@@ -96,37 +96,76 @@ class MetadataGenerator:
         """Generate metadata for a video based on channel configuration"""
         channel = self.get_channel_by_id(channel_id)
         if not channel:
-            return self._get_fallback_metadata()
+            return self._get_fallback_metadata(video_filename)
         
-        return self._generate_static_metadata(channel)
+        return self._generate_static_metadata(channel, video_filename)
     
 
     
 
     
-    def _generate_static_metadata(self, channel: dict) -> Dict:
-        """Generate metadata using channel templates"""
+    def _generate_static_metadata(self, channel: dict, filename: str = None) -> Dict:
+        """Generate metadata using channel templates or filename"""
         # Get templates from channel config
         templates = channel.get("templates", {})
-        title = templates.get("title", "Amazing Video #Shorts")
-        description = templates.get("description", "Check out this amazing video!")
+        title_template = templates.get("title", "Amazing Video #Shorts")
+        description_template = templates.get("description", "Check out this amazing video!")
+        
+        # If templates contain placeholders, generate from filename
+        if "{trending_title}" in title_template or "{trending_description}" in description_template:
+            # Generate title from filename
+            if filename:
+                # Clean up filename: remove extension, underscores, numbers
+                clean_name = filename.rsplit('.', 1)[0]  # Remove extension
+                clean_name = clean_name.replace('_', ' ').replace('-', ' ')
+                # Remove leading numbers/timestamps
+                import re
+                clean_name = re.sub(r'^\d+\s*', '', clean_name)
+                clean_name = clean_name.strip()
+                
+                if clean_name:
+                    title = f"{clean_name[:55]} #Shorts"
+                else:
+                    title = f"{channel.get('name', 'Amazing Video')} #Shorts"
+            else:
+                title = f"{channel.get('name', 'Amazing Video')} #Shorts"
+            
+            channel_name = channel.get('name', '')
+            description = f"{title}\n\n#shorts #viral #trending"
+        else:
+            title = title_template
+            description = description_template
         
         # Get default tags from channel or use fallback
-        tags = channel.get("default_tags", ["Shorts"])
+        tags = channel.get("default_tags", ["shorts", "viral", "trending"])
         
         return {
-            "title": title,
-            "description": description,
+            "title": title[:100],  # YouTube max
+            "description": description[:5000],  # YouTube max
             "tags": tags,
             "category": "Entertainment"
         }
     
-    def _get_fallback_metadata(self) -> Dict:
+    def _get_fallback_metadata(self, filename: str = None) -> Dict:
         """Fallback metadata when no channel is configured"""
+        if filename:
+            # Generate title from filename
+            import re
+            clean_name = filename.rsplit('.', 1)[0]
+            clean_name = clean_name.replace('_', ' ').replace('-', ' ')
+            clean_name = re.sub(r'^\d+\s*', '', clean_name).strip()
+            
+            if clean_name:
+                title = f"{clean_name[:55]} #Shorts"
+            else:
+                title = "Amazing Video #Shorts"
+        else:
+            title = "Amazing Video #Shorts"
+        
         return {
-            "title": "Amazing Video #Shorts",
-            "description": "Check out this amazing video! #Shorts",
-            "tags": ["Shorts", "Viral", "Trending"],
+            "title": title,
+            "description": f"{title}\n\n#shorts #viral #trending",
+            "tags": ["shorts", "viral", "trending"],
             "category": "Entertainment",
             "source_csv": None
         }

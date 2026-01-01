@@ -152,7 +152,10 @@ def analyze_video_with_gemini(video_buffer, filename, channel_name=""):
     """
     if not GEMINI_API_KEY:
         print("Warning: GEMINI_API_KEY not set, skipping AI analysis", file=sys.stderr)
+        print(f"DEBUG: GEMINI_API_KEY value: '{GEMINI_API_KEY[:10]}...' (length: {len(GEMINI_API_KEY) if GEMINI_API_KEY else 0})", file=sys.stderr)
         return None
+    
+    print(f"DEBUG: Using GEMINI_API_KEY (length: {len(GEMINI_API_KEY)})", file=sys.stderr)
     
     try:
         # Configure Gemini
