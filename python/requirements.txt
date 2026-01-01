@@ -3,6 +3,7 @@ google-auth-httplib2
 google-auth-oauthlib
 google-generativeai
 openai
+opencv-python
 pymongo[srv]
 dnspython
 python-dotenv
