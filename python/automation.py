@@ -216,11 +216,11 @@ CONTENT GUIDELINES:
 - Lowercase only
 
 STRICT OUTPUT FORMAT (JSON ONLY):
-{
+{{
   "title": "string",
   "description": "string",
   "tags": ["tag1", "tag2", "tag3", "tag4", "tag5"]
-}
+}}
 
 Focus on virality, retention, and click-through rate.
 """
