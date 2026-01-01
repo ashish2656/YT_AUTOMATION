@@ -38,11 +38,14 @@ def seed_channels():
     # Convert channels to MongoDB format
     channel_docs = []
     for ch in config.get('channels', []):
+        drive_url = ch.get('drive_folder_id', '')
+        drive_id = extract_folder_id(drive_url)
+        
         channel_docs.append({
             "channel_id": ch.get('youtube_account', ch.get('id')),
             "channel_name": ch.get('name', ''),
-            "drive_folder_id": extract_folder_id(ch.get('drive_folder_id', '')),
-            "drive_folder_url": ch.get('drive_folder_id', ''),
+            "drive_folder_id": drive_id,
+            "drive_folder_url": drive_url,
             "enabled": ch.get('enabled', True),
             "title_template": ch.get('templates', {}).get('title', '{trending_title}'),
             "description_template": ch.get('templates', {}).get('description', '{trending_description}'),

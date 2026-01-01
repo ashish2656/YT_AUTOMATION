@@ -46,13 +46,49 @@ export async function POST(request: Request) {
     const { action, channelId, channelData } = body;
     
     if (action === "update") {
+      // Map frontend format to database format
+      const updateData: Record<string, unknown> = {};
+      if (channelData.name) updateData.channel_name = channelData.name;
+      if (channelData.drive_folder_id) {
+        updateData.drive_folder_url = channelData.drive_folder_id;
+        // Extract folder ID from URL
+        if (channelData.drive_folder_id.includes('/folders/')) {
+          updateData.drive_folder_id = channelData.drive_folder_id.split('/folders/')[1].split('?')[0].split('/')[0];
+        } else {
+          updateData.drive_folder_id = channelData.drive_folder_id;
+        }
+      }
+      if (channelData.youtube_account) updateData.channel_id = channelData.youtube_account;
+      if (channelData.enabled !== undefined) updateData.enabled = channelData.enabled;
+      if (channelData.categories) updateData.categories = channelData.categories;
+      if (channelData.templates) {
+        updateData.title_template = channelData.templates.title;
+        updateData.description_template = channelData.templates.description;
+      }
+      
       await channels.updateOne(
         { channel_id: channelId },
-        { $set: channelData }
+        { $set: updateData }
       );
     } else if (action === "create") {
+      // Map frontend format to database format for new channel
+      const newChannelId = channelData.youtube_account || `channel_${Date.now()}`;
+      let driveFolderId = channelData.drive_folder_id || '';
+      if (driveFolderId.includes('/folders/')) {
+        driveFolderId = driveFolderId.split('/folders/')[1].split('?')[0].split('/')[0];
+      }
+      
       await channels.insertOne({
-        ...channelData,
+        channel_id: newChannelId,
+        channel_name: channelData.name || '',
+        drive_folder_url: channelData.drive_folder_id || '',
+        drive_folder_id: driveFolderId,
+        enabled: channelData.enabled ?? true,
+        categories: channelData.categories || [],
+        title_template: channelData.templates?.title || '{trending_title}',
+        description_template: channelData.templates?.description || '{trending_description}',
+        tags: ['shorts'],
+        category_id: '22',
         created_at: new Date().toISOString()
       });
     } else if (action === "delete") {
