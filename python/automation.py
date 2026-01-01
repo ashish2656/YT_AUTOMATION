@@ -339,22 +339,44 @@ def analyze_video_with_openai(video_buffer, filename, channel_name=""):
             content = [
                 {
                     "type": "text",
-                    "text": f"""Analyze these frames from a YouTube Short video and generate engaging metadata.
+                    "text": f"""You are a YouTube Shorts growth expert.
 
-Channel: {channel_name}
+Analyze the provided frames from a short-form video and generate high-performing,
+viral-ready metadata optimized for YouTube Shorts discovery.
+
+Channel Name: {channel_name}
 Filename: {filename}
 
-Generate:
-1. A catchy, viral-worthy title (max 60 characters) that will make people click
-2. An SEO-optimized description (max 200 characters) with relevant keywords
-3. 5 trending hashtags that match the video content
+CONTENT GUIDELINES:
 
-Respond ONLY with valid JSON:
+1. TITLE
+- Maximum 60 characters
+- Curiosity-driven and emotionally engaging
+- Designed to stop scrolling
+- No emojis
+- No misleading clickbait
+
+2. DESCRIPTION
+- Maximum 200 characters
+- First line must hook the viewer
+- Clearly describe what happens in the video
+- Use SEO-friendly keywords naturally
+- Encourage likes, comments, or shares
+
+3. TAGS
+- Exactly 5 trending hashtags
+- Highly relevant to the video content
+- Suitable for YouTube Shorts
+- Lowercase only
+
+STRICT OUTPUT FORMAT (JSON ONLY):
 {{
-  "title": "your catchy title here",
-  "description": "your SEO description here",
+  "title": "string",
+  "description": "string",
   "tags": ["tag1", "tag2", "tag3", "tag4", "tag5"]
-}}"""
+}}
+
+Focus on virality, retention, and click-through rate."""
                 }
             ]
             
@@ -431,12 +453,14 @@ def analyze_video_with_ai(video_buffer, filename, channel_name=""):
     if GEMINI_API_KEY:
         result = analyze_video_with_gemini(video_buffer, filename, channel_name)
         if result == "QUOTA_EXCEEDED":
-            print("🔄 Switching to OpenAI fallback...", file=sys.stderr)
+            print("🔄 Gemini quota exceeded, switching to OpenAI fallback...", file=sys.stderr)
+            # Don't return, continue to OpenAI fallback below
         elif result is not None:
             return result
     
-    # Fallback to OpenAI
+    # Fallback to OpenAI (either Gemini failed/quota exceeded or not configured)
     if OPENAI_API_KEY:
+        print("🤖 Using OpenAI for analysis...", file=sys.stderr)
         video_buffer.seek(0)  # Reset buffer position
         result = analyze_video_with_openai(video_buffer, filename, channel_name)
         if result is not None:
