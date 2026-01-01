@@ -5,26 +5,47 @@ import path from "path";
 import { existsSync } from "fs";
 
 const execAsync = promisify(exec);
-const PYTHON_DIR = path.join(process.cwd(), "python");
-const VENV_PYTHON = path.join(PYTHON_DIR, "venv", "bin", "python3");
-const PYTHON_BIN = existsSync(VENV_PYTHON) ? VENV_PYTHON : "python3";
+
+function getPythonPaths() {
+  const PYTHON_DIR = path.join(process.cwd(), "python");
+  const VENV_PYTHON = path.join(PYTHON_DIR, "venv", "bin", "python3");
+  const PYTHON_BIN = existsSync(VENV_PYTHON) ? VENV_PYTHON : "python3";
+  const scriptPath = path.join(PYTHON_DIR, "automation.py");
+  return { PYTHON_BIN, scriptPath };
+}
 
 export async function POST(request: Request) {
   try {
-    // Check if a specific video ID was provided
+    const { PYTHON_BIN, scriptPath } = getPythonPaths();
+    
+    // Check if a specific video ID or channel was provided
     let videoFileId: string | null = null;
+    let channelId: string = "";
+    let uploadAll: boolean = false;
+    
     try {
       const body = await request.json();
       videoFileId = body.videoId || null;
+      channelId = body.channelId || "";
+      uploadAll = body.uploadAll || false;
     } catch {
-      // No body provided, upload next video
+      // No body provided, use defaults
     }
-
-    // Run the Python upload script
-    const scriptPath = path.join(PYTHON_DIR, "automation.py");
-    const command = videoFileId
-      ? `"${PYTHON_BIN}" "${scriptPath}" upload "${videoFileId}"`
-      : `"${PYTHON_BIN}" "${scriptPath}" upload`;
+    let command = "";
+    
+    // Upload from all channels
+    if (uploadAll) {
+      command = `"${PYTHON_BIN}" "${scriptPath}" upload-all`;
+    } else if (videoFileId && channelId) {
+      command = `"${PYTHON_BIN}" "${scriptPath}" upload "${videoFileId}" "${channelId}"`;
+    } else if (channelId) {
+      command = `"${PYTHON_BIN}" "${scriptPath}" upload "${channelId}"`;
+    } else {
+      return NextResponse.json(
+        { success: false, error: "Channel ID is required" },
+        { status: 400 }
+      );
+    }
 
     const { stdout, stderr } = await execAsync(command);
 

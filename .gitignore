@@ -45,4 +45,4 @@ python/token.json
 python/config.json
 python/uploaded_videos.json
 python/__pycache__/
-python/.env
+python/.envpython/token_account*.json

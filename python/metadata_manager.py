@@ -1,0 +1,147 @@
+import os
+import json
+from typing import Dict, List, Optional
+from pymongo import MongoClient
+from datetime import datetime
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(os.path.dirname(SCRIPT_DIR), "data")
+CHANNELS_CONFIG_FILE = os.path.join(SCRIPT_DIR, "channels_config.json")
+
+class MetadataGenerator:
+    """Generate unique video metadata from CSV data"""
+    
+    def __init__(self):
+        self.mongo_uri = os.environ.get("MONGO_URI")
+        self.channels_config = self.load_channels_config()
+    
+    def get_mongo_db(self):
+        """Get MongoDB database connection"""
+        if not self.mongo_uri:
+            return None
+        try:
+            client = MongoClient(self.mongo_uri)
+            return client.yt_automation
+        except Exception as e:
+            print(f"MongoDB connection error: {e}")
+            return None
+        
+    def load_channels_config(self) -> dict:
+        """Load multi-channel configuration from MongoDB or file"""
+        # Try MongoDB first
+        db = self.get_mongo_db()
+        if db is not None:
+            try:
+                config_doc = db.channels_config.find_one({"_id": "main_config"})
+                if config_doc:
+                    config = {
+                        "channels": config_doc.get("channels", []),
+                        "youtube_accounts": config_doc.get("youtube_accounts", {})
+                    }
+                    return config
+            except Exception as e:
+                print(f"Failed to load channels from MongoDB: {e}")
+        
+        # Fallback to file
+        if os.path.exists(CHANNELS_CONFIG_FILE):
+            with open(CHANNELS_CONFIG_FILE, 'r') as f:
+                return json.load(f)
+        return {"channels": [], "youtube_accounts": {}}
+    
+    def save_channels_config(self, config: dict):
+        """Save multi-channel configuration to MongoDB and file"""
+        # Save to MongoDB
+        db = self.get_mongo_db()
+        if db is not None:
+            try:
+                db.channels_config.update_one(
+                    {"_id": "main_config"},
+                    {
+                        "$set": {
+                            "channels": config.get("channels", []),
+                            "youtube_accounts": config.get("youtube_accounts", {}),
+                            "updated_at": datetime.now()
+                        }
+                    },
+                    upsert=True
+                )
+            except Exception as e:
+                print(f"Failed to save channels to MongoDB: {e}")
+        
+        # Also save to file as backup
+        with open(CHANNELS_CONFIG_FILE, 'w') as f:
+            json.dump(config, f, indent=2)
+    
+
+    
+    def get_channel_by_id(self, channel_id: str) -> Optional[dict]:
+        """Get channel configuration by ID"""
+        for channel in self.channels_config.get("channels", []):
+            if channel["id"] == channel_id:
+                return channel
+        return None
+    
+    def get_enabled_channels(self) -> List[dict]:
+        """Get all enabled channels"""
+        return [ch for ch in self.channels_config.get("channels", []) if ch.get("enabled", True)]
+    
+    def get_channel_for_folder(self, folder_id: str) -> Optional[dict]:
+        """Find channel associated with a Drive folder ID"""
+        for channel in self.channels_config.get("channels", []):
+            if channel.get("drive_folder_id") == folder_id and channel.get("enabled", True):
+                return channel
+        return None
+    
+    def generate_metadata(self, channel_id: str, video_filename: str = None) -> Dict[str, any]:
+        """Generate metadata for a video based on channel configuration"""
+        channel = self.get_channel_by_id(channel_id)
+        if not channel:
+            return self._get_fallback_metadata()
+        
+        return self._generate_static_metadata(channel)
+    
+
+    
+
+    
+    def _generate_static_metadata(self, channel: dict) -> Dict:
+        """Generate metadata using channel templates"""
+        # Get templates from channel config
+        templates = channel.get("templates", {})
+        title = templates.get("title", "Amazing Video #Shorts")
+        description = templates.get("description", "Check out this amazing video!")
+        
+        # Get default tags from channel or use fallback
+        tags = channel.get("default_tags", ["Shorts"])
+        
+        return {
+            "title": title,
+            "description": description,
+            "tags": tags,
+            "category": "Entertainment"
+        }
+    
+    def _get_fallback_metadata(self) -> Dict:
+        """Fallback metadata when no channel is configured"""
+        return {
+            "title": "Amazing Video #Shorts",
+            "description": "Check out this amazing video! #Shorts",
+            "tags": ["Shorts", "Viral", "Trending"],
+            "category": "Entertainment",
+            "source_csv": None
+        }
+    
+
+    
+
+
+
+# Singleton instance
+_metadata_generator = None
+
+def get_metadata_generator() -> MetadataGenerator:
+    """Get singleton metadata generator instance"""
+    global _metadata_generator
+    if _metadata_generator is None:
+        _metadata_generator = MetadataGenerator()
+    return _metadata_generator

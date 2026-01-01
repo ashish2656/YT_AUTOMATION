@@ -1,0 +1,78 @@
+{
+  "channels": [
+    {
+      "name": "ashish5151 -> Ai Doctor Reels",
+      "drive_folder_id": "https://drive.google.com/drive/folders/1Z-6J41wUjaYop--C_DcCPTFBJ-iWh_XK",
+      "youtube_account": "account2",
+      "categories": [
+        "tech reviewer"
+      ],
+      "templates": {
+        "title": "{trending_title}",
+        "description": "{trending_description}\n\n#shorts"
+      },
+      "enabled": true,
+      "id": "channel_1"
+    },
+    {
+      "name": "ajya2003 ->tech gadgets",
+      "drive_folder_id": "https://drive.google.com/drive/folders/1buFdIWsi_MbcxMN8b9WK2qANHKGxlMWe",
+      "categories": [
+        "Gadgets"
+      ],
+      "templates": {
+        "title": "{trending_title}",
+        "description": "{trending_description}\n\n#shorts"
+      },
+      "enabled": true,
+      "id": "channel_2",
+      "youtube_account": "account1"
+    },
+    {
+      "name": "ashish2656 -> Satisfying",
+      "drive_folder_id": "https://drive.google.com/drive/folders/1jzhyjsiKPRWJSZZSsasz4qq8Kq9qapV5",
+      "youtube_account": "account3",
+      "categories": [
+        "Relaxation"
+      ],
+      "templates": {
+        "title": "{trending_title}",
+        "description": "{trending_description}\n\n#shorts"
+      },
+      "enabled": true,
+      "id": "channel_3"
+    },
+    {
+      "name": "ajay5151 ->4k reels",
+      "drive_folder_id": "https://drive.google.com/drive/folders/1n5byPHY4N4FW8j5J4aJYEK0ywzgFbEFM",
+      "categories": [
+        "$k"
+      ],
+      "templates": {
+        "title": "{trending_title}",
+        "description": "{trending_description}\n\n#shorts"
+      },
+      "enabled": true,
+      "id": "channel_4",
+      "youtube_account": "account4"
+    }
+  ],
+  "youtube_accounts": {
+    "account1": {
+      "name": "Account 1",
+      "token_env_var": "GOOGLE_TOKEN_ACCOUNT1_JSON"
+    },
+    "account2": {
+      "name": "Account 2",
+      "token_env_var": "GOOGLE_TOKEN_ACCOUNT2_JSON"
+    },
+    "account3": {
+      "name": "Account 3",
+      "token_env_var": "GOOGLE_TOKEN_ACCOUNT3_JSON"
+    },
+    "account4": {
+      "name": "Account 4",
+      "token_env_var": "GOOGLE_TOKEN_ACCOUNT4_JSON"
+    }
+  }
+}

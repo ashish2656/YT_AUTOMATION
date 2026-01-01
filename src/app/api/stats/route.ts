@@ -5,14 +5,19 @@ import path from "path";
 import { existsSync } from "fs";
 
 const execAsync = promisify(exec);
-const PYTHON_DIR = path.join(process.cwd(), "python");
-const VENV_PYTHON = path.join(PYTHON_DIR, "venv", "bin", "python3");
-const PYTHON_BIN = existsSync(VENV_PYTHON) ? VENV_PYTHON : "python3";
+
+function getPythonPaths() {
+  const PYTHON_DIR = path.join(process.cwd(), "python");
+  const VENV_PYTHON = path.join(PYTHON_DIR, "venv", "bin", "python3");
+  const PYTHON_BIN = existsSync(VENV_PYTHON) ? VENV_PYTHON : "python3";
+  const scriptPath = path.join(PYTHON_DIR, "automation.py");
+  return { PYTHON_BIN, scriptPath };
+}
 
 export async function GET() {
   try {
+    const { PYTHON_BIN, scriptPath } = getPythonPaths();
     // Run Python script to get stats from Google Drive
-    const scriptPath = path.join(PYTHON_DIR, "automation.py");
     const { stdout } = await execAsync(
       `"${PYTHON_BIN}" "${scriptPath}" stats`
     );

@@ -5,14 +5,19 @@ import path from "path";
 import { existsSync } from "fs";
 
 const execAsync = promisify(exec);
-const PYTHON_DIR = path.join(process.cwd(), "python");
-const VENV_PYTHON = path.join(PYTHON_DIR, "venv", "bin", "python3");
-const PYTHON_BIN = existsSync(VENV_PYTHON) ? VENV_PYTHON : "python3";
+
+function getPythonPaths() {
+  const PYTHON_DIR = path.join(process.cwd(), "python");
+  const VENV_PYTHON = path.join(PYTHON_DIR, "venv", "bin", "python3");
+  const PYTHON_BIN = existsSync(VENV_PYTHON) ? VENV_PYTHON : "python3";
+  const scriptPath = path.join(PYTHON_DIR, "automation.py");
+  return { PYTHON_BIN, scriptPath };
+}
 
 // GET current config
 export async function GET() {
   try {
-    const scriptPath = path.join(PYTHON_DIR, "automation.py");
+    const { PYTHON_BIN, scriptPath } = getPythonPaths();
     const { stdout } = await execAsync(
       `"${PYTHON_BIN}" "${scriptPath}" config`
     );
@@ -35,10 +40,10 @@ export async function GET() {
 // POST to update config
 export async function POST(request: Request) {
   try {
+    const { PYTHON_BIN, scriptPath } = getPythonPaths();
     const body = await request.json();
     const { field, value } = body;
 
-    const scriptPath = path.join(PYTHON_DIR, "automation.py");
     let command: string;
     switch (field) {
       case "drive_folder_id":
