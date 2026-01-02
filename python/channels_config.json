@@ -55,6 +55,20 @@
       "enabled": true,
       "id": "channel_4",
       "youtube_account": "account4"
+    },
+    {
+      "name": "account5 -> Mixed Content",
+      "drive_folder_id": "https://drive.google.com/drive/folders/1TIPCKgYu8iPnXgurqdzwBGfQlUGM2z8a",
+      "youtube_account": "account5",
+      "categories": [
+        "Entertainment"
+      ],
+      "templates": {
+        "title": "{trending_title}",
+        "description": "{trending_description}\n\n#shorts"
+      },
+      "enabled": true,
+      "id": "channel_5"
     }
   ],
   "youtube_accounts": {
