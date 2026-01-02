@@ -77,77 +77,12 @@ def get_mongo_db():
 
 # Fallback to local file tracking if MongoDB fails
 UPLOADED_TRACKER = os.path.join(SCRIPT_DIR, "uploaded_videos.json")
-SUBFOLDER_TRACKER = os.path.join(SCRIPT_DIR, "subfolder_tracker.json")
 
-def load_subfolder_tracker():
-    """Load subfolder tracking data from MongoDB or local file"""
-    db = get_mongo_db()
-    if db is not None:
-        try:
-            tracker = db.subfolder_tracker.find_one({"_id": "tracker"})
-            if tracker:
-                return tracker.get("data", {})
-        except Exception as e:
-            print(f"Warning: Failed to load subfolder tracker from MongoDB: {e}", file=sys.stderr)
-    
-    # Fallback to local file
-    if os.path.exists(SUBFOLDER_TRACKER):
-        with open(SUBFOLDER_TRACKER, "r") as f:
-            return json.load(f)
-    return {}
+# Subfolder tracking removed - videos are now fetched directly from folders
 
-def save_subfolder_tracker(data):
-    """Save subfolder tracking data to MongoDB and local file"""
-    # Save to local file first (backup)
-    with open(SUBFOLDER_TRACKER, "w") as f:
-        json.dump(data, f, indent=2)
-    
-    # Save to MongoDB
-    db = get_mongo_db()
-    if db is not None:
-        try:
-            db.subfolder_tracker.update_one(
-                {"_id": "tracker"},
-                {"$set": {"data": data, "updated_at": datetime.now()}},
-                upsert=True
-            )
-        except Exception as e:
-            print(f"Warning: Failed to save subfolder tracker to MongoDB: {e}", file=sys.stderr)
+# Subfolder tracking removed
 
-def get_subfolders_from_drive(drive_service, parent_folder_id):
-    """
-    Get all subfolders from a parent folder in Google Drive
-    
-    Args:
-        drive_service: Google Drive API service
-        parent_folder_id: ID of the parent folder
-        
-    Returns:
-        list: List of subfolder dicts with id and name, sorted by name
-    """
-    try:
-        subfolders = []
-        page_token = None
-        
-        while True:
-            results = drive_service.files().list(
-                q=f"'{parent_folder_id}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false",
-                orderBy="name",
-                pageSize=100,
-                pageToken=page_token,
-                fields="nextPageToken, files(id, name)"
-            ).execute()
-            
-            subfolders.extend(results.get("files", []))
-            page_token = results.get("nextPageToken")
-            
-            if not page_token:
-                break
-        
-        return sorted(subfolders, key=lambda x: x["name"])
-    except Exception as e:
-        print(f"Error getting subfolders: {e}", file=sys.stderr)
-        return []
+# Subfolder logic removed - videos fetched directly from main folder
 
 def get_videos_from_folder(drive_service, folder_id, uploaded_ids, uploaded_titles):
     """
@@ -180,30 +115,29 @@ def get_videos_from_folder(drive_service, folder_id, uploaded_ids, uploaded_titl
         print(f"Error getting videos from folder: {e}", file=sys.stderr)
         return []
 
-def get_next_video_with_subfolder_rotation(drive_service, main_folder_id, channel_id, uploaded_ids, uploaded_titles):
+def get_next_video(drive_service, folder_id, uploaded_ids, uploaded_titles):
     """
     Get the next video to upload from the folder
     
     Args:
         drive_service: Google Drive API service
-        main_folder_id: ID of the folder containing videos
-        channel_id: Channel ID (not used, kept for compatibility)
+        folder_id: ID of the folder containing videos
         uploaded_ids: Set of already uploaded video IDs
         uploaded_titles: Set of already uploaded video titles
         
     Returns:
-        tuple: (video_dict, folder_name) or (None, None) if no videos
+        video_dict or None if no videos available
     """
     # Get videos directly from the folder
     print(f"📁 Getting videos from folder...", file=sys.stderr)
-    videos = get_videos_from_folder(drive_service, main_folder_id, uploaded_ids, uploaded_titles)
+    videos = get_videos_from_folder(drive_service, folder_id, uploaded_ids, uploaded_titles)
     
     if videos:
         print(f"✅ Found {len(videos)} videos available", file=sys.stderr)
-        return videos[0], "main"
+        return videos[0]
     
     print(f"❌ No videos left to upload in folder", file=sys.stderr)
-    return None, None
+    return None
 
 def load_uploaded_ids_local():
     """Load uploaded IDs from local file (fallback)"""
@@ -1266,42 +1200,21 @@ def get_stats():
             creds = get_credentials_for_account(account_id)
             drive_service = build("drive", "v3", credentials=creds)
             
-            # Check for subfolders first
-            subfolders = get_subfolders_from_drive(drive_service, folder_id)
-            
-            if subfolders:
-                # Count videos in all subfolders
-                for subfolder in subfolders:
-                    page_token = None
-                    while True:
-                        results = drive_service.files().list(
-                            q=f"'{subfolder['id']}' in parents and mimeType contains 'video/' and trashed = false",
-                            pageSize=100,
-                            pageToken=page_token,
-                            fields="nextPageToken, files(id)"
-                        ).execute()
-                        
-                        total += len(results.get("files", []))
-                        page_token = results.get("nextPageToken")
-                        
-                        if not page_token:
-                            break
-            else:
-                # No subfolders, count videos in main folder
-                page_token = None
-                while True:
-                    results = drive_service.files().list(
-                        q=f"'{folder_id}' in parents and mimeType contains 'video/' and trashed = false",
-                        pageSize=100,
-                        pageToken=page_token,
-                        fields="nextPageToken, files(id)"
-                    ).execute()
-                    
-                    total += len(results.get("files", []))
-                    page_token = results.get("nextPageToken")
-                    
-                    if not page_token:
-                        break
+            # Count videos in folder
+            page_token = None
+            while True:
+                results = drive_service.files().list(
+                    q=f"'{folder_id}' in parents and mimeType contains 'video/' and trashed = false",
+                    pageSize=100,
+                    pageToken=page_token,
+                    fields="nextPageToken, files(id)"
+                ).execute()
+                
+                total += len(results.get("files", []))
+                page_token = results.get("nextPageToken")
+                
+                if not page_token:
+                    break
         except Exception as e:
             print(f"Warning: Failed to get stats for channel {channel['name']}: {e}", file=sys.stderr)
             continue
@@ -1346,37 +1259,24 @@ def get_videos(limit=20, channel_id=None):
             creds = get_credentials_for_account(account_id)
             drive_service = build("drive", "v3", credentials=creds)
             
-            # Check for subfolders first
-            subfolders = get_subfolders_from_drive(drive_service, folder_id)
-            folders_to_scan = []
+            # Get videos from folder
+            results = drive_service.files().list(
+                q=f"'{folder_id}' in parents and mimeType contains 'video/' and trashed = false",
+                orderBy="createdTime asc",
+                pageSize=limit,
+                fields="files(id, name, size)"
+            ).execute()
             
-            if subfolders:
-                # Scan all subfolders
-                for sf in subfolders:
-                    folders_to_scan.append({"id": sf["id"], "name": sf["name"]})
-            else:
-                # No subfolders, scan main folder
-                folders_to_scan.append({"id": folder_id, "name": "main"})
-            
-            for folder in folders_to_scan:
-                results = drive_service.files().list(
-                    q=f"'{folder['id']}' in parents and mimeType contains 'video/' and trashed = false",
-                    orderBy="createdTime asc",
-                    pageSize=limit,
-                    fields="files(id, name, size)"
-                ).execute()
-                
-                for f in results.get("files", []):
-                    size_bytes = int(f.get("size", 0))
-                    size_mb = f"{size_bytes / (1024*1024):.1f} MB" if size_bytes > 0 else "Unknown"
-                    videos.append({
-                        "id": f["id"],
-                        "name": f["name"],
-                        "size": size_mb,
-                        "channel": channel["name"],
-                        "subfolder": folder["name"],
-                        "status": "uploaded" if f["id"] in uploaded_ids else "pending"
-                    })
+            for f in results.get("files", []):
+                size_bytes = int(f.get("size", 0))
+                size_mb = f"{size_bytes / (1024*1024):.1f} MB" if size_bytes > 0 else "Unknown"
+                videos.append({
+                    "id": f["id"],
+                    "name": f["name"],
+                    "size": size_mb,
+                    "channel": channel["name"],
+                    "status": "uploaded" if f["id"] in uploaded_ids else "pending"
+                })
         except Exception as e:
             print(f"Warning: Failed to get videos for channel {channel['name']}: {e}", file=sys.stderr)
             continue
@@ -1465,24 +1365,23 @@ def upload_next(channel_id=None):
     
     uploaded_ids, uploaded_titles = load_uploaded_videos()
     
-    # Use subfolder rotation to get next video
-    print(f"🔄 Getting next video with subfolder rotation for {target_channel['name']}...", file=sys.stderr)
-    file, subfolder_name = get_next_video_with_subfolder_rotation(
+    # Get next video from folder
+    print(f"🔄 Getting next video for {target_channel['name']}...", file=sys.stderr)
+    file = get_next_video(
         drive_service, 
         folder_id, 
-        target_channel["id"], 
         uploaded_ids, 
         uploaded_titles
     )
     
     if not file:
-        return {"success": False, "error": "No videos left to upload (all subfolders exhausted)"}
+        return {"success": False, "error": "No videos left to upload in folder"}
     
     file_id = file["id"]
     file_name = file["name"]
     mime_type = file.get("mimeType", "video/mp4")
     
-    print(f"📹 Selected: {file_name} from subfolder: {subfolder_name}", file=sys.stderr)
+    print(f"📹 Selected: {file_name}", file=sys.stderr)
     
     # Stream from Drive to memory
     request = drive_service.files().get_media(fileId=file_id)

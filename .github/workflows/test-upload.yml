@@ -8,12 +8,12 @@ on:
         required: true
         type: choice
         options:
-          - account1
-          - account2
-          - account3
-          - account4
-          - account5
-        default: 'account1'
+          - channel_1
+          - channel_2
+          - channel_3
+          - channel_4
+          - channel_5
+        default: 'channel_1'
       channel_name:
         description: 'Channel name (for reference only)'
         required: false
