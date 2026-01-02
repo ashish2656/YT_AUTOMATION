@@ -118,6 +118,7 @@ export default function Dashboard() {
   const [showChannelModal, setShowChannelModal] = useState(false);
   const [editingChannel, setEditingChannel] = useState<Channel | null>(null);
   const [selectedChannel, setSelectedChannel] = useState<string>("");
+  const [availableAccounts, setAvailableAccounts] = useState<{id: string; name: string}[]>([]);
   const [channelForm, setChannelForm] = useState({
     name: "",
     drive_folder_id: "",
@@ -194,6 +195,19 @@ export default function Dashboard() {
       }
     } catch (error) {
       console.error("Failed to fetch history:", error);
+    }
+  }, []);
+
+  // Fetch available YouTube accounts
+  const fetchAccounts = useCallback(async () => {
+    try {
+      const response = await fetch("/api/accounts");
+      const data = await response.json();
+      if (data.success && Array.isArray(data.accounts)) {
+        setAvailableAccounts(data.accounts);
+      }
+    } catch (error) {
+      console.error("Failed to fetch accounts:", error);
     }
   }, []);
 
@@ -320,7 +334,8 @@ export default function Dashboard() {
     fetchAccountInfo();
     fetchHistory();
     fetchChannels();
-  }, [fetchStats, fetchVideos, fetchConfig, fetchAccountInfo, fetchHistory, fetchChannels]);
+    fetchAccounts();
+  }, [fetchStats, fetchVideos, fetchConfig, fetchAccountInfo, fetchHistory, fetchChannels, fetchAccounts]);
 
   // Fetch videos when selected channel changes
   useEffect(() => {
@@ -1263,10 +1278,21 @@ export default function Dashboard() {
                   onChange={(e) => setChannelForm({ ...channelForm, youtube_account: e.target.value })}
                   className="w-full px-4 py-3 rounded-xl glass-effect text-white focus:outline-none focus:ring-2 focus:ring-white/20 bg-transparent"
                 >
-                  <option value="account1" className="bg-black">Account 1</option>
-                  <option value="account2" className="bg-black">Account 2</option>
-                  <option value="account3" className="bg-black">Account 3</option>
-                  <option value="account4" className="bg-black">Account 4</option>
+                  {availableAccounts.length > 0 ? (
+                    availableAccounts.map((acc) => (
+                      <option key={acc.id} value={acc.id} className="bg-black">
+                        {acc.name}
+                      </option>
+                    ))
+                  ) : (
+                    <>
+                      <option value="account1" className="bg-black">Account 1</option>
+                      <option value="account2" className="bg-black">Account 2</option>
+                      <option value="account3" className="bg-black">Account 3</option>
+                      <option value="account4" className="bg-black">Account 4</option>
+                      <option value="account5" className="bg-black">Account 5</option>
+                    </>
+                  )}
                 </select>
                 <p className="text-white/40 text-xs mt-1">Select which YouTube account to upload to</p>
               </div>
