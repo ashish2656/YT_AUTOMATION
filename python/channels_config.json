@@ -1,8 +1,8 @@
 {
   "channels": [
     {
-      "name": "ashish5151 -> Ai Doctor Reels",
-      "drive_folder_id": "https://drive.google.com/drive/folders/1Z-6J41wUjaYop--C_DcCPTFBJ-iWh_XK",
+      "name": "ashish5151 -> Baddie",
+      "drive_folder_id": "https://drive.google.com/drive/folders/1TIPCKgYu8iPnXgurqdzwBGfQlUGM2z8a",
       "youtube_account": "account2",
       "categories": [
         "tech reviewer"
@@ -57,11 +57,11 @@
       "youtube_account": "account4"
     },
     {
-      "name": "account5 -> Mixed Content",
+      "name": "ashish269697 -> Mixed Content",
       "drive_folder_id": "https://drive.google.com/drive/folders/1TIPCKgYu8iPnXgurqdzwBGfQlUGM2z8a",
       "youtube_account": "account5",
       "categories": [
-        "Entertainment"
+        "baddie"
       ],
       "templates": {
         "title": "{trending_title}",
