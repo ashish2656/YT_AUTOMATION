@@ -53,6 +53,7 @@ class MetadataGenerator:
                     channels.append(channel)
                 
                 if channels:
+                    print(f"DEBUG MetadataManager: Loaded {len(channels)} channels from MongoDB 'channels' collection")
                     # Load youtube_accounts from channels_config if available
                     config_doc = db.channels_config.find_one({"_id": "main_config"})
                     youtube_accounts = config_doc.get("youtube_accounts", {}) if config_doc else {}
@@ -71,6 +72,7 @@ class MetadataGenerator:
                 print(f"Failed to load channels from MongoDB: {e}")
         
         # Fallback to file
+        print(f"DEBUG MetadataManager: Falling back to local file {CHANNELS_CONFIG_FILE}")
         if os.path.exists(CHANNELS_CONFIG_FILE):
             with open(CHANNELS_CONFIG_FILE, 'r') as f:
                 return json.load(f)
