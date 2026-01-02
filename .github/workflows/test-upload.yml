@@ -1,0 +1,85 @@
+name: Test Upload (Single Channel)
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: 'Select channel to upload from'
+        required: true
+        type: choice
+        options:
+          - channel_1
+          - channel_2
+          - channel_3
+          - channel_4
+          - channel_5
+        default: 'channel_1'
+      channel_name:
+        description: 'Channel name (for reference only)'
+        required: false
+        type: choice
+        options:
+          - 'ashish5151 -> Baddie (account2)'
+          - 'ajya2003 -> tech gadgets (account1)'
+          - 'ashish2656 -> Satisfying (account3)'
+          - 'ajay5151 -> 4k reels (account4)'
+          - 'ashish269697 -> Mixed Content (account5)'
+
+jobs:
+  test-upload:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: 'python/requirements.txt'
+
+      - name: Cache Hugging Face models
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-moondream-${{ runner.os }}-v2
+          restore-keys: |
+            hf-moondream-${{ runner.os }}-
+
+      - name: Install system dependencies for pyvips
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libvips-dev
+
+      - name: Install dependencies
+        run: |
+          cd python
+          pip install -r requirements.txt
+
+      - name: Create token files from secrets
+        run: |
+          echo '${{ secrets.GOOGLE_TOKEN_ACCOUNT1_JSON }}' > python/token_account1.json
+          echo '${{ secrets.GOOGLE_TOKEN_ACCOUNT2_JSON }}' > python/token_account2.json
+          echo '${{ secrets.GOOGLE_TOKEN_ACCOUNT3_JSON }}' > python/token_account3.json
+          echo '${{ secrets.GOOGLE_TOKEN_ACCOUNT4_JSON }}' > python/token_account4.json
+          echo '${{ secrets.GOOGLE_TOKEN_ACCOUNT5_JSON }}' > python/token_account5.json
+
+      - name: Test upload for selected channel
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          USE_LOCAL_MODEL: "true"
+          HF_HOME: ~/.cache/huggingface
+        run: |
+          cd python
+          echo "🧪 Testing upload for channel: ${{ github.event.inputs.channel }}"
+          python automation.py upload --channel ${{ github.event.inputs.channel }}
+
+      - name: Cleanup token files
+        if: always()
+        run: |
+          rm -f python/token_account*.json

@@ -1814,17 +1814,19 @@ if __name__ == "__main__":
             channel_id = None
             video_id = None
             
-            # Parse arguments: can be upload [video_id] [channel_id] or upload [channel_id]
-            if len(sys.argv) > 2:
-                first_arg = sys.argv[2]
-                # Check if first arg looks like channel_id (starts with 'channel')
-                if first_arg.startswith('channel'):
-                    channel_id = first_arg
+            # Parse arguments: upload [video_id] [channel_id] or upload --channel channel_id
+            i = 2
+            while i < len(sys.argv):
+                arg = sys.argv[i]
+                if arg == "--channel" and i + 1 < len(sys.argv):
+                    channel_id = sys.argv[i + 1]
+                    i += 2
+                elif arg.startswith('channel'):
+                    channel_id = arg
+                    i += 1
                 else:
-                    video_id = first_arg
-                    # Check for channel_id as third arg
-                    if len(sys.argv) > 3:
-                        channel_id = sys.argv[3]
+                    video_id = arg
+                    i += 1
             
             if video_id:
                 result = upload_specific(video_id)
