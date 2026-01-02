@@ -7,3 +7,4 @@ opencv-python
 pymongo[srv]
 dnspython
 python-dotenv
+requests

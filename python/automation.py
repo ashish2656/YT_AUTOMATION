@@ -45,6 +45,9 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip("'\"")
 # OpenAI Configuration (fallback when Gemini quota exhausted)
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip("'\"")
 
+# Together AI Configuration (LLaVA - LLaMA Vision, FREE $25 credits)
+TOGETHER_API_KEY = os.environ.get("TOGETHER_API_KEY", "").strip("'\"")
+
 # Global MongoDB client (cached)
 _mongo_client = None
 _mongo_db = None
@@ -183,47 +186,38 @@ def analyze_video_with_gemini(video_buffer, filename, channel_name=""):
                 print(f"Warning: Video processing timed out or failed", file=sys.stderr)
                 return None
             
-            # Create prompt for Gemini
-            prompt = f"""
-You are a YouTube Shorts growth expert.
+            # Create prompt for Gemini - VIRAL optimized
+            prompt = f"""You are an expert YouTube Shorts viral content strategist with 10+ years of experience.
 
-Analyze the provided short-form video and generate high-performing,
-viral-ready metadata optimized for YouTube Shorts discovery.
+Analyze this video and create VIRAL metadata that will EXPLODE on YouTube Shorts.
 
-Channel Name:
-{channel_name}
+Channel: {channel_name}
 
-CONTENT GUIDELINES:
+🔥 VIRAL TITLE RULES:
+- MAXIMUM 50 characters (YouTube cuts off longer titles)
+- Use power words: "Insane", "Mind-Blowing", "You Won't Believe", "Secret", "Shocking", "Wait for it"
+- Create curiosity gap - make them NEED to watch
+- NO emojis, NO clickbait lies
+- Pattern interrupt - something unexpected
 
-1. TITLE
-- Maximum 60 characters
-- Curiosity-driven and emotionally engaging
-- Designed to stop scrolling
-- No emojis
-- No misleading clickbait
+💥 VIRAL DESCRIPTION RULES:
+- First line = emotional hook that creates FOMO
+- Add call-to-action: "Follow for more!", "Comment your reaction!", "Save this!"
+- Include 3-5 relevant keywords naturally
+- Maximum 150 characters
 
-2. DESCRIPTION
-- Maximum 200 characters
-- First line must hook the viewer
-- Clearly describe what happens in the video
-- Use SEO-friendly keywords naturally
-- Encourage likes, comments, or shares
+🏷️ VIRAL TAGS RULES:
+- Exactly 5 hashtags
+- Mix of: 2 trending tags + 2 niche tags + 1 broad tag
+- All lowercase, no spaces
+- Use currently trending hashtags
 
-3. TAGS
-- Exactly 5 trending hashtags
-- Highly relevant to the video content
-- Suitable for YouTube Shorts
-- Lowercase only
-
-STRICT OUTPUT FORMAT (JSON ONLY):
+OUTPUT JSON ONLY:
 {{
-  "title": "string",
-  "description": "string",
-  "tags": ["tag1", "tag2", "tag3", "tag4", "tag5"]
-}}
-
-Focus on virality, retention, and click-through rate.
-"""
+  "title": "viral title here",
+  "description": "viral description with CTA",
+  "tags": ["viral", "trending", "niche1", "niche2", "broad"]
+}}"""
             
             # Generate response using gemini-2.5-flash
             print(f"🧠 Analyzing video content...", file=sys.stderr)
@@ -339,44 +333,38 @@ def analyze_video_with_openai(video_buffer, filename, channel_name=""):
             content = [
                 {
                     "type": "text",
-                    "text": f"""You are a YouTube Shorts growth expert.
+                    "text": f"""You are an expert YouTube Shorts viral content strategist with 10+ years of experience.
 
-Analyze the provided frames from a short-form video and generate high-performing,
-viral-ready metadata optimized for YouTube Shorts discovery.
+Analyze these video frames and create VIRAL metadata that will EXPLODE on YouTube Shorts.
 
-Channel Name: {channel_name}
-Filename: {filename}
+Channel: {channel_name}
+Video: {filename}
 
-CONTENT GUIDELINES:
+🔥 VIRAL TITLE RULES:
+- MAXIMUM 50 characters (YouTube cuts off longer titles)
+- Use power words: "Insane", "Mind-Blowing", "You Won't Believe", "Secret", "Shocking"
+- Create curiosity gap - make them NEED to watch
+- NO emojis, NO clickbait lies
+- Pattern interrupt - something unexpected
 
-1. TITLE
-- Maximum 60 characters
-- Curiosity-driven and emotionally engaging
-- Designed to stop scrolling
-- No emojis
-- No misleading clickbait
+💥 VIRAL DESCRIPTION RULES:
+- First line = emotional hook that creates FOMO
+- Add call-to-action: "Follow for more!", "Comment your reaction!"
+- Include 3-5 relevant keywords naturally
+- Maximum 150 characters
 
-2. DESCRIPTION
-- Maximum 200 characters
-- First line must hook the viewer
-- Clearly describe what happens in the video
-- Use SEO-friendly keywords naturally
-- Encourage likes, comments, or shares
+🏷️ VIRAL TAGS RULES:
+- Exactly 5 hashtags
+- Mix of: 2 trending tags + 2 niche tags + 1 broad tag
+- All lowercase, no spaces
+- Research current viral trends
 
-3. TAGS
-- Exactly 5 trending hashtags
-- Highly relevant to the video content
-- Suitable for YouTube Shorts
-- Lowercase only
-
-STRICT OUTPUT FORMAT (JSON ONLY):
+OUTPUT JSON ONLY:
 {{
-  "title": "string",
-  "description": "string",
-  "tags": ["tag1", "tag2", "tag3", "tag4", "tag5"]
-}}
-
-Focus on virality, retention, and click-through rate."""
+  "title": "viral title here",
+  "description": "viral description with CTA",
+  "tags": ["viral", "trending", "niche1", "niche2", "broad"]
+}}"""
                 }
             ]
             
@@ -437,9 +425,185 @@ Focus on virality, retention, and click-through rate."""
         return None
 
 
+def analyze_video_with_together(video_buffer, filename, channel_name=""):
+    """
+    Analyze video with Together AI's LLaVA model (LLaMA + Vision)
+    FREE $25 credits - very generous quota!
+    
+    Args:
+        video_buffer: BytesIO buffer containing video data
+        filename: Original filename
+        channel_name: Name of the channel for context
+        
+    Returns:
+        dict: {"title": str, "description": str, "tags": list} or None if failed
+    """
+    if not TOGETHER_API_KEY:
+        print("Warning: TOGETHER_API_KEY not set, cannot use Together AI fallback", file=sys.stderr)
+        return None
+    
+    try:
+        import cv2
+        import base64
+        import requests
+        
+        # Save video to temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as tmp_file:
+            video_buffer.seek(0)
+            tmp_file.write(video_buffer.read())
+            tmp_path = tmp_file.name
+        
+        try:
+            # Extract frames from video
+            print(f"🎬 Extracting frames for LLaVA analysis...", file=sys.stderr)
+            cap = cv2.VideoCapture(tmp_path)
+            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            
+            # Get 3 frames: beginning, middle, end
+            frame_positions = [0, total_frames // 2, max(0, total_frames - 10)]
+            encoded_frames = []
+            
+            for pos in frame_positions:
+                cap.set(cv2.CAP_PROP_POS_FRAMES, pos)
+                ret, frame = cap.read()
+                if ret:
+                    # Resize frame to reduce token usage
+                    frame = cv2.resize(frame, (512, 512))
+                    # Encode to base64
+                    _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                    encoded_frames.append(base64.b64encode(buffer).decode('utf-8'))
+            
+            cap.release()
+            
+            if not encoded_frames:
+                print("Warning: Could not extract frames from video", file=sys.stderr)
+                return None
+            
+            # Build prompt for LLaVA
+            print(f"🦙 Analyzing with LLaVA (LLaMA Vision)...", file=sys.stderr)
+            
+            prompt = f"""You are an expert YouTube Shorts viral content strategist with 10+ years of experience.
+
+Analyze these video frames and create VIRAL metadata that will EXPLODE on YouTube Shorts.
+
+Channel: {channel_name}
+Video: {filename}
+
+🔥 VIRAL TITLE RULES:
+- MAXIMUM 50 characters (YouTube cuts off longer titles)
+- Use power words: "Insane", "Mind-Blowing", "You Won't Believe", "Secret", "Shocking"
+- Create curiosity gap - make them NEED to watch
+- NO emojis, NO clickbait lies
+- Pattern interrupt - something unexpected
+
+💥 VIRAL DESCRIPTION RULES:
+- First line = emotional hook that creates FOMO
+- Add call-to-action: "Follow for more!", "Comment your reaction!"
+- Include 3-5 relevant keywords naturally
+- Maximum 150 characters
+
+🏷️ VIRAL TAGS RULES:
+- Exactly 5 hashtags
+- Mix of: 2 trending tags + 2 niche tags + 1 broad tag
+- All lowercase, no spaces
+- Research current viral trends
+
+OUTPUT JSON ONLY:
+{{
+  "title": "viral title here",
+  "description": "viral description with CTA",
+  "tags": ["viral", "trending", "niche1", "niche2", "broad"]
+}}"""
+
+            # Use only the middle frame (most representative) for LLaVA
+            middle_frame = encoded_frames[len(encoded_frames) // 2]
+            
+            # Call Together AI API
+            response = requests.post(
+                "https://api.together.xyz/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {TOGETHER_API_KEY}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "meta-llama/Llama-Vision-Free",  # FREE LLaVA model
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": prompt},
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:image/jpeg;base64,{middle_frame}"
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                    "max_tokens": 500,
+                    "temperature": 0.7
+                },
+                timeout=60
+            )
+            
+            if response.status_code == 429:
+                print("⚠️ Together AI rate limited", file=sys.stderr)
+                return "QUOTA_EXCEEDED"
+            
+            response.raise_for_status()
+            result = response.json()
+            
+            # Parse response
+            response_text = result["choices"][0]["message"]["content"].strip()
+            
+            # Remove markdown code blocks if present
+            if response_text.startswith("```json"):
+                response_text = response_text[7:-3].strip()
+            elif response_text.startswith("```"):
+                response_text = response_text[3:-3].strip()
+            
+            # Try to extract JSON from response
+            import re
+            json_match = re.search(r'\{[^{}]*\}', response_text, re.DOTALL)
+            if json_match:
+                response_text = json_match.group()
+            
+            metadata = json.loads(response_text)
+            
+            # Validate and clean metadata
+            title = metadata.get("title", "")[:100]
+            description = metadata.get("description", "")[:5000]
+            tags = metadata.get("tags", [])[:15]
+            
+            print(f"✅ LLaVA Generated: {title}", file=sys.stderr)
+            
+            return {
+                "title": title,
+                "description": description,
+                "tags": tags,
+                "category_id": "24"  # Entertainment
+            }
+            
+        finally:
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+                
+    except Exception as e:
+        error_msg = str(e).lower()
+        if "429" in error_msg or "rate" in error_msg or "quota" in error_msg:
+            print(f"⚠️ Together AI quota exceeded: {e}", file=sys.stderr)
+            return "QUOTA_EXCEEDED"
+        print(f"Error in Together AI analysis: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return None
+
+
 def analyze_video_with_ai(video_buffer, filename, channel_name=""):
     """
-    Analyze video with AI - tries Gemini first, falls back to OpenAI if quota exceeded
+    Analyze video with AI - tries multiple providers with fallbacks
+    Priority: Gemini -> Together AI (LLaVA) -> OpenAI
     
     Args:
         video_buffer: BytesIO buffer containing video data
@@ -449,24 +613,33 @@ def analyze_video_with_ai(video_buffer, filename, channel_name=""):
     Returns:
         dict: {"title": str, "description": str, "tags": list} or None if all failed
     """
-    # Try Gemini first
+    # Try Gemini first (20 free/day)
     if GEMINI_API_KEY:
         result = analyze_video_with_gemini(video_buffer, filename, channel_name)
         if result == "QUOTA_EXCEEDED":
-            print("🔄 Gemini quota exceeded, switching to OpenAI fallback...", file=sys.stderr)
-            # Don't return, continue to OpenAI fallback below
+            print("🔄 Gemini quota exceeded, trying Together AI...", file=sys.stderr)
         elif result is not None:
             return result
     
-    # Fallback to OpenAI (either Gemini failed/quota exceeded or not configured)
+    # Try Together AI (LLaVA) - FREE $25 credits, very generous
+    if TOGETHER_API_KEY:
+        print("🦙 Using Together AI (LLaVA) for analysis...", file=sys.stderr)
+        video_buffer.seek(0)
+        result = analyze_video_with_together(video_buffer, filename, channel_name)
+        if result == "QUOTA_EXCEEDED":
+            print("🔄 Together AI quota exceeded, trying OpenAI...", file=sys.stderr)
+        elif result is not None:
+            return result
+    
+    # Try OpenAI as last resort
     if OPENAI_API_KEY:
         print("🤖 Using OpenAI for analysis...", file=sys.stderr)
-        video_buffer.seek(0)  # Reset buffer position
+        video_buffer.seek(0)
         result = analyze_video_with_openai(video_buffer, filename, channel_name)
         if result is not None:
             return result
     
-    # Both failed
+    # All AI providers failed
     print("⚠️ All AI analysis failed, will use templates", file=sys.stderr)
     return None
 
