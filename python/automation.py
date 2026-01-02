@@ -105,11 +105,17 @@ def get_videos_from_folder(drive_service, folder_id, uploaded_ids, uploaded_titl
             fields="files(id, name, mimeType)"
         ).execute()
         
+        all_videos = results.get("files", [])
+        print(f"DEBUG: Found {len(all_videos)} total videos in folder", file=sys.stderr)
+        
         available_videos = []
-        for f in results.get("files", []):
+        for f in all_videos:
             if f["id"] not in uploaded_ids and f["name"].lower() not in uploaded_titles:
                 available_videos.append(f)
+            else:
+                print(f"DEBUG: Skipping '{f['name']}' - already uploaded", file=sys.stderr)
         
+        print(f"DEBUG: {len(available_videos)} videos available (not uploaded yet)", file=sys.stderr)
         return available_videos
     except Exception as e:
         print(f"Error getting videos from folder: {e}", file=sys.stderr)
@@ -1357,6 +1363,8 @@ def upload_next(channel_id=None):
             "error": f"Invalid drive_folder_id for channel '{target_channel['name']}'"
         }
     
+    print(f"DEBUG: Using Drive folder_id: {folder_id}", file=sys.stderr)
+    
     # Get credentials for the channel's account
     creds = get_credentials_for_account(account_id)
     
@@ -1364,6 +1372,7 @@ def upload_next(channel_id=None):
     youtube_service = build("youtube", "v3", credentials=creds)
     
     uploaded_ids, uploaded_titles = load_uploaded_videos()
+    print(f"DEBUG: Already uploaded {len(uploaded_ids)} videos (by ID), {len(uploaded_titles)} videos (by title)", file=sys.stderr)
     
     # Get next video from folder
     print(f"🔄 Getting next video for {target_channel['name']}...", file=sys.stderr)
