@@ -3,8 +3,13 @@ google-auth-httplib2
 google-auth-oauthlib
 google-generativeai
 openai
-opencv-python
+opencv-python-headless
 pymongo[srv]
 dnspython
 python-dotenv
 requests
+transformers
+torch
+torchvision
+Pillow
+einops

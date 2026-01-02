@@ -22,6 +22,16 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: 'python/requirements.txt'
+
+      - name: Cache Hugging Face models
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-moondream-${{ runner.os }}-v2
+          restore-keys: |
+            hf-moondream-${{ runner.os }}-
 
       - name: Install dependencies
         run: |
@@ -42,6 +52,8 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          USE_LOCAL_MODEL: "true"
+          HF_HOME: ~/.cache/huggingface
         run: |
           cd python
           python automation.py upload-all

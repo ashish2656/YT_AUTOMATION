@@ -594,6 +594,246 @@ OUTPUT JSON ONLY:
         return None
 
 
+# Global model cache for Moondream
+_moondream_model = None
+_moondream_tokenizer = None
+
+def get_moondream_model():
+    """Load Moondream model with caching (only loads once)"""
+    global _moondream_model, _moondream_tokenizer
+    
+    if _moondream_model is not None:
+        return _moondream_model, _moondream_tokenizer
+    
+    try:
+        from transformers import AutoModelForCausalLM, AutoTokenizer
+        import torch
+        
+        print("📥 Loading Moondream vision model (first time only)...", file=sys.stderr)
+        
+        model_id = "vikhyatk/moondream2"
+        revision = "2025-01-09"  # Latest stable version
+        
+        # Load tokenizer
+        _moondream_tokenizer = AutoTokenizer.from_pretrained(model_id, revision=revision)
+        
+        # Load model - use CPU for GitHub Actions compatibility
+        _moondream_model = AutoModelForCausalLM.from_pretrained(
+            model_id,
+            revision=revision,
+            trust_remote_code=True,
+            torch_dtype=torch.float32,  # Use float32 for CPU
+            device_map="cpu"
+        )
+        
+        print("✅ Moondream model loaded successfully!", file=sys.stderr)
+        return _moondream_model, _moondream_tokenizer
+        
+    except Exception as e:
+        print(f"❌ Failed to load Moondream model: {e}", file=sys.stderr)
+        return None, None
+
+
+def analyze_video_with_moondream(video_buffer, filename, channel_name=""):
+    """
+    Analyze video with local Moondream vision model (runs on CPU)
+    FREE - No API costs! Lightweight 1.8B parameter model
+    
+    Args:
+        video_buffer: BytesIO buffer containing video data
+        filename: Original filename
+        channel_name: Name of the channel for context
+        
+    Returns:
+        dict: {"title": str, "description": str, "tags": list} or None if failed
+    """
+    try:
+        import cv2
+        from PIL import Image
+        import io
+        
+        print("🌙 Using local Moondream model for analysis...", file=sys.stderr)
+        
+        # Load model
+        model, tokenizer = get_moondream_model()
+        if model is None:
+            return None
+        
+        # Save video to temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as tmp_file:
+            video_buffer.seek(0)
+            tmp_file.write(video_buffer.read())
+            tmp_path = tmp_file.name
+        
+        try:
+            # Extract frames from video
+            print(f"🎬 Extracting frames for Moondream analysis...", file=sys.stderr)
+            cap = cv2.VideoCapture(tmp_path)
+            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            
+            # Get middle frame (best representation)
+            middle_pos = total_frames // 2
+            cap.set(cv2.CAP_PROP_POS_FRAMES, middle_pos)
+            ret, frame = cap.read()
+            cap.release()
+            
+            if not ret:
+                print("Warning: Could not extract frame from video", file=sys.stderr)
+                return None
+            
+            # Convert BGR to RGB and resize
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            frame_rgb = cv2.resize(frame_rgb, (384, 384))  # Moondream optimal size
+            
+            # Convert to PIL Image
+            pil_image = Image.fromarray(frame_rgb)
+            
+            # Encode image for model
+            encoded_image = model.encode_image(pil_image)
+            
+            # First, get a description of what's in the video
+            description_prompt = "Describe what you see in this image in detail. What is the main subject? What action or scene is shown?"
+            description = model.answer_question(encoded_image, description_prompt, tokenizer)
+            
+            print(f"📝 Moondream description: {description[:100]}...", file=sys.stderr)
+            
+            # Now generate viral metadata based on the description
+            # We'll use simple text processing since Moondream is for vision
+            viral_metadata = generate_viral_metadata_from_description(description, channel_name, filename)
+            
+            return viral_metadata
+            
+        finally:
+            # Clean up temp file
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+                
+    except Exception as e:
+        print(f"Error in Moondream analysis: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return None
+
+
+def generate_viral_metadata_from_description(description, channel_name="", filename=""):
+    """
+    Generate viral YouTube Shorts metadata from a video description
+    Uses pattern matching and templates for viral content
+    
+    Args:
+        description: Text description of the video content
+        channel_name: Name of the channel for context
+        filename: Original filename for hints
+        
+    Returns:
+        dict: {"title": str, "description": str, "tags": list, "category_id": str}
+    """
+    import re
+    
+    description_lower = description.lower()
+    
+    # Power words for viral titles
+    power_words = ["INSANE", "INCREDIBLE", "UNBELIEVABLE", "SHOCKING", "AMAZING", 
+                   "MIND-BLOWING", "EPIC", "LEGENDARY", "WILD", "CRAZY"]
+    
+    # Detect content category and generate appropriate metadata
+    if any(word in description_lower for word in ["cat", "dog", "pet", "animal", "puppy", "kitten"]):
+        category = "animals"
+        hooks = ["This Will Melt Your Heart! 🥺", "Wait For It... 😱", "I Can't Stop Watching! 🔥"]
+        tags = ["animals", "pets", "cute", "funny", "viral", "shorts"]
+        category_id = "15"  # Pets & Animals
+        
+    elif any(word in description_lower for word in ["food", "cook", "eat", "recipe", "delicious", "chef"]):
+        category = "food"
+        hooks = ["You NEED To Try This! 🤤", "Food Hack That Changed My Life!", "Wait Until You See This! 😋"]
+        tags = ["food", "cooking", "recipe", "foodie", "viral", "shorts"]
+        category_id = "26"  # Howto & Style
+        
+    elif any(word in description_lower for word in ["game", "gaming", "play", "player", "gamer", "video game"]):
+        category = "gaming"
+        hooks = ["This Play Was INSANE! 🎮", "Watch This Clutch! 🔥", "They Didn't See This Coming! 😱"]
+        tags = ["gaming", "gamer", "gameplay", "epic", "viral", "shorts"]
+        category_id = "20"  # Gaming
+        
+    elif any(word in description_lower for word in ["satisfying", "oddly", "smooth", "perfect", "asmr"]):
+        category = "satisfying"
+        hooks = ["So Satisfying To Watch! 😌", "I Could Watch This Forever!", "Pure Satisfaction! ✨"]
+        tags = ["satisfying", "oddlysatisfying", "asmr", "relaxing", "viral", "shorts"]
+        category_id = "24"  # Entertainment
+        
+    elif any(word in description_lower for word in ["funny", "laugh", "comedy", "hilarious", "joke"]):
+        category = "comedy"
+        hooks = ["I Can't Stop Laughing! 😂", "This Is Too Funny!", "Wait For The End! 🤣"]
+        tags = ["funny", "comedy", "laugh", "humor", "viral", "shorts"]
+        category_id = "23"  # Comedy
+        
+    elif any(word in description_lower for word in ["tech", "gadget", "phone", "computer", "device", "robot"]):
+        category = "tech"
+        hooks = ["This Tech Is From The Future! 🤯", "You Won't Believe This Gadget!", "Game Changer! 🔥"]
+        tags = ["tech", "gadgets", "technology", "innovation", "viral", "shorts"]
+        category_id = "28"  # Science & Technology
+        
+    elif any(word in description_lower for word in ["car", "drive", "vehicle", "race", "speed", "motor"]):
+        category = "cars"
+        hooks = ["This Car Is INSANE! 🏎️", "Listen To That Engine! 🔥", "Pure Power! 💪"]
+        tags = ["cars", "automotive", "racing", "supercar", "viral", "shorts"]
+        category_id = "2"  # Autos & Vehicles
+        
+    elif any(word in description_lower for word in ["fitness", "workout", "gym", "exercise", "muscle", "training"]):
+        category = "fitness"
+        hooks = ["Try This Workout! 💪", "Fitness Hack That Works!", "Transform Your Body! 🔥"]
+        tags = ["fitness", "workout", "gym", "exercise", "motivation", "shorts"]
+        category_id = "17"  # Sports
+        
+    elif any(word in description_lower for word in ["beauty", "makeup", "skincare", "fashion", "style", "outfit"]):
+        category = "beauty"
+        hooks = ["This Changed Everything! ✨", "Beauty Secret Revealed!", "You Need This! 💅"]
+        tags = ["beauty", "makeup", "skincare", "fashion", "style", "shorts"]
+        category_id = "26"  # Howto & Style
+        
+    else:
+        # Default/general content
+        category = "general"
+        hooks = ["You Have To See This! 🔥", "Wait For It... 😱", "This Is INCREDIBLE! 🤯"]
+        tags = ["viral", "trending", "amazing", "mustwatch", "shorts"]
+        category_id = "24"  # Entertainment
+    
+    import random
+    
+    # Generate title
+    hook = random.choice(hooks)
+    power_word = random.choice(power_words)
+    
+    # Create a short summary from description (first sentence or 50 chars)
+    summary = description.split('.')[0][:50].strip()
+    if len(summary) > 30:
+        summary = summary[:30] + "..."
+    
+    # Final title (max 100 chars for YouTube)
+    title = f"{hook}"
+    if len(title) < 60:
+        title = f"{power_word}! {hook}"
+    
+    # Generate description with CTAs
+    full_description = f"""{description[:200]}
+
+🔥 {hook}
+
+👆 WATCH TILL THE END!
+💬 Comment what you think!
+❤️ Like if you enjoyed this!
+🔔 Follow for more!
+
+#shorts #{category} #viral #trending #fyp"""
+    
+    return {
+        "title": title[:100],
+        "description": full_description[:5000],
+        "tags": tags + ["shorts", "viral", "trending", "fyp"],
+        "category_id": category_id
+    }
+
+
 def analyze_video_with_together(video_buffer, filename, channel_name=""):
     """
     Analyze video with Together AI's LLaVA model (LLaMA + Vision)
@@ -772,7 +1012,7 @@ OUTPUT JSON ONLY:
 def analyze_video_with_ai(video_buffer, filename, channel_name=""):
     """
     Analyze video with AI - tries multiple providers with fallbacks
-    Priority: Gemini -> Together AI (LLaVA) -> OpenAI
+    Priority: Moondream (local/free) -> Gemini -> Together AI -> OpenAI
     
     Args:
         video_buffer: BytesIO buffer containing video data
@@ -782,15 +1022,28 @@ def analyze_video_with_ai(video_buffer, filename, channel_name=""):
     Returns:
         dict: {"title": str, "description": str, "tags": list} or None if all failed
     """
-    # Try Gemini first (20 free/day)
+    # Check if local model is preferred (set USE_LOCAL_MODEL=true to prefer local)
+    use_local_first = os.environ.get("USE_LOCAL_MODEL", "true").lower() == "true"
+    
+    if use_local_first:
+        # Try local Moondream first (FREE, no API costs!)
+        print("🌙 Trying local Moondream model first...", file=sys.stderr)
+        video_buffer.seek(0)
+        result = analyze_video_with_moondream(video_buffer, filename, channel_name)
+        if result is not None:
+            return result
+        print("⚠️ Local model failed, trying cloud APIs...", file=sys.stderr)
+    
+    # Try Gemini (20 free/day)
     if GEMINI_API_KEY:
+        video_buffer.seek(0)
         result = analyze_video_with_gemini(video_buffer, filename, channel_name)
         if result == "QUOTA_EXCEEDED":
-            print("🔄 Gemini quota exceeded, trying Together AI...", file=sys.stderr)
+            print("🔄 Gemini quota exceeded, trying next...", file=sys.stderr)
         elif result is not None:
             return result
     
-    # Try Together AI (LLaVA) - FREE $25 credits, very generous
+    # Try Together AI (LLaVA) - FREE $25 credits
     if TOGETHER_API_KEY:
         print("🦙 Using Together AI (LLaVA) for analysis...", file=sys.stderr)
         video_buffer.seek(0)
@@ -805,6 +1058,14 @@ def analyze_video_with_ai(video_buffer, filename, channel_name=""):
         print("🤖 Using OpenAI for analysis...", file=sys.stderr)
         video_buffer.seek(0)
         result = analyze_video_with_openai(video_buffer, filename, channel_name)
+        if result is not None:
+            return result
+    
+    # If local model wasn't tried first, try it now as last resort
+    if not use_local_first:
+        print("🌙 Trying local Moondream model as fallback...", file=sys.stderr)
+        video_buffer.seek(0)
+        result = analyze_video_with_moondream(video_buffer, filename, channel_name)
         if result is not None:
             return result
     
