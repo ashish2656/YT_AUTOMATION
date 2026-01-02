@@ -28,17 +28,45 @@ class MetadataGenerator:
         
     def load_channels_config(self) -> dict:
         """Load multi-channel configuration from MongoDB or file"""
-        # Try MongoDB first
+        # Try MongoDB first - read from 'channels' collection (where dashboard saves)
         db = self.get_mongo_db()
         if db is not None:
             try:
-                config_doc = db.channels_config.find_one({"_id": "main_config"})
-                if config_doc:
-                    config = {
-                        "channels": config_doc.get("channels", []),
-                        "youtube_accounts": config_doc.get("youtube_accounts", {})
+                # Read from channels collection directly
+                channels_cursor = db.channels.find({})
+                channels = []
+                for doc in channels_cursor:
+                    # Map MongoDB field names to expected format
+                    channel = {
+                        "id": doc.get("channel_id", ""),
+                        "name": doc.get("channel_name", ""),
+                        "drive_folder_id": doc.get("drive_folder_id", ""),
+                        "youtube_account": doc.get("channel_id", ""),  # channel_id is like "account1"
+                        "enabled": doc.get("enabled", True),
+                        "title_template": doc.get("title_template", "{trending_title}"),
+                        "description_template": doc.get("description_template", "{trending_description}"),
+                        "tags": doc.get("tags", []),
+                        "category_id": doc.get("category_id", "22"),
+                        "categories": doc.get("categories", []),
+                        "use_ai_metadata": True
                     }
-                    return config
+                    channels.append(channel)
+                
+                if channels:
+                    # Load youtube_accounts from channels_config if available
+                    config_doc = db.channels_config.find_one({"_id": "main_config"})
+                    youtube_accounts = config_doc.get("youtube_accounts", {}) if config_doc else {}
+                    
+                    # If no youtube_accounts in DB, load from local file
+                    if not youtube_accounts and os.path.exists(CHANNELS_CONFIG_FILE):
+                        with open(CHANNELS_CONFIG_FILE, 'r') as f:
+                            local_config = json.load(f)
+                            youtube_accounts = local_config.get("youtube_accounts", {})
+                    
+                    return {
+                        "channels": channels,
+                        "youtube_accounts": youtube_accounts
+                    }
             except Exception as e:
                 print(f"Failed to load channels from MongoDB: {e}")
         
