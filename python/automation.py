@@ -972,7 +972,7 @@ OUTPUT JSON ONLY:
 def analyze_video_with_ai(video_buffer, filename, channel_name=""):
     """
     Analyze video with AI - tries multiple providers with fallbacks
-    Priority: Moondream (local/free) -> Gemini -> Together AI -> OpenAI
+    Priority: Gemini -> Together AI -> OpenAI
     
     Args:
         video_buffer: BytesIO buffer containing video data
@@ -982,19 +982,7 @@ def analyze_video_with_ai(video_buffer, filename, channel_name=""):
     Returns:
         dict: {"title": str, "description": str, "tags": list} or None if all failed
     """
-    # Check if local model is preferred (set USE_LOCAL_MODEL=true to prefer local)
-    use_local_first = os.environ.get("USE_LOCAL_MODEL", "true").lower() == "true"
-    
-    if use_local_first:
-        # Try local Moondream first (FREE, no API costs!)
-        print("🌙 Trying local Moondream model first...", file=sys.stderr)
-        video_buffer.seek(0)
-        result = analyze_video_with_moondream(video_buffer, filename, channel_name)
-        if result is not None:
-            return result
-        print("⚠️ Local model failed, trying cloud APIs...", file=sys.stderr)
-    
-    # Try Gemini (20 free/day)
+    # Try Gemini first (20 free/day)
     if GEMINI_API_KEY:
         video_buffer.seek(0)
         result = analyze_video_with_gemini(video_buffer, filename, channel_name)
