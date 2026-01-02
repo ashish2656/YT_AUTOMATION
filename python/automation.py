@@ -82,7 +82,7 @@ SUBFOLDER_TRACKER = os.path.join(SCRIPT_DIR, "subfolder_tracker.json")
 def load_subfolder_tracker():
     """Load subfolder tracking data from MongoDB or local file"""
     db = get_mongo_db()
-    if db:
+    if db is not None:
         try:
             tracker = db.subfolder_tracker.find_one({"_id": "tracker"})
             if tracker:
@@ -104,7 +104,7 @@ def save_subfolder_tracker(data):
     
     # Save to MongoDB
     db = get_mongo_db()
-    if db:
+    if db is not None:
         try:
             db.subfolder_tracker.update_one(
                 {"_id": "tracker"},
