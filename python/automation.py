@@ -622,9 +622,11 @@ def get_moondream_model():
             model_id,
             revision=revision,
             trust_remote_code=True,
-            torch_dtype=torch.float32,  # Use float32 for CPU
-            device_map="cpu"
-        )
+            low_cpu_mem_usage=True
+        ).to("cpu")
+        
+        # Set to evaluation mode
+        _moondream_model.eval()
         
         print("✅ Moondream model loaded successfully!", file=sys.stderr)
         return _moondream_model, _moondream_tokenizer

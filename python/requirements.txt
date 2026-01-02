@@ -14,3 +14,4 @@ torchvision
 Pillow
 einops
 pyvips
+accelerate
