@@ -8,22 +8,22 @@ on:
         required: true
         type: choice
         options:
-          - channel_1
-          - channel_2
-          - channel_3
-          - channel_4
-          - channel_5
-        default: 'channel_1'
+          - account1
+          - account2
+          - account3
+          - account4
+          - account5
+        default: 'account1'
       channel_name:
         description: 'Channel name (for reference only)'
         required: false
         type: choice
         options:
-          - 'ashish5151 -> Baddie (account2)'
-          - 'ajya2003 -> tech gadgets (account1)'
-          - 'ashish2656 -> Satisfying (account3)'
-          - 'ajay5151 -> 4k reels (account4)'
-          - 'ashish269697 -> Mixed Content (account5)'
+          - 'account1 - ajya2003 -> tech gadgets'
+          - 'account2 - ashish5151 -> Baddie'
+          - 'account3 - ashish2656 -> Satisfying'
+          - 'account4 - ajay5151 -> 4k reels'
+          - 'account5 - ashish269697 -> Mixed Content'
 
 jobs:
   test-upload:
