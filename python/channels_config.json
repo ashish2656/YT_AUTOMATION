@@ -73,6 +73,10 @@
     "account4": {
       "name": "Account 4",
       "token_env_var": "GOOGLE_TOKEN_ACCOUNT4_JSON"
+    },
+    "account5": {
+      "name": "Account 5",
+      "token_env_var": "GOOGLE_TOKEN_ACCOUNT5_JSON"
     }
   }
 }

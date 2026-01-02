@@ -67,31 +67,20 @@ def save_token_to_mongo(token_data):
         return False
 
 def get_credentials_json():
-    """Get credentials from environment or create from Google Console"""
+    """Get credentials from environment variables"""
     load_env()
     
+    # Get credentials from environment variables (required)
     client_id = os.environ.get("GOOGLE_CLIENT_ID")
     client_secret = os.environ.get("GOOGLE_CLIENT_SECRET")
     
     if not client_id or not client_secret:
-        print("\n" + "=" * 60)
-        print("⚠️  Google OAuth Credentials Not Found!")
-        print("=" * 60)
-        print("\nPlease provide your Google OAuth credentials.")
-        print("\nOption 1: Add to .env file (recommended)")
-        print("-" * 60)
-        print("GOOGLE_CLIENT_ID=your_client_id_here")
-        print("GOOGLE_CLIENT_SECRET=your_client_secret_here")
-        print()
-        print("Option 2: Enter them now")
-        print("-" * 60)
-        
-        client_id = input("Enter Google Client ID: ").strip()
-        client_secret = input("Enter Google Client Secret: ").strip()
-        
-        if not client_id or not client_secret:
-            print("\n❌ Error: Both Client ID and Client Secret are required!")
-            return None
+        print("❌ Missing required environment variables!")
+        print("   Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET before running.")
+        print("   Example:")
+        print("   export GOOGLE_CLIENT_ID='your-client-id.apps.googleusercontent.com'")
+        print("   export GOOGLE_CLIENT_SECRET='GOCSPX-your-secret'")
+        raise ValueError("OAuth credentials not found in environment variables")
     
     credentials = {
         "installed": {
