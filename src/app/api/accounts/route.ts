@@ -3,8 +3,10 @@ import fs from "fs";
 import path from "path";
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 // GET - Get all available YouTube accounts from channels_config.json
+// Updated: Now includes Account 5
 export async function GET() {
   try {
     const configPath = path.join(process.cwd(), "python", "channels_config.json");
@@ -19,15 +21,17 @@ export async function GET() {
     const configData = JSON.parse(fs.readFileSync(configPath, "utf-8"));
     const youtubeAccounts = configData.youtube_accounts || {};
     
-    // Convert to array format for frontend
-    const accounts = Object.entries(youtubeAccounts).map(([id, account]: [string, unknown]) => {
-      const acc = account as { name?: string; token_env_var?: string };
-      return {
-        id,
-        name: acc.name || id,
-        token_env_var: acc.token_env_var || `GOOGLE_TOKEN_${id.toUpperCase()}_JSON`
-      };
-    });
+    // Convert to array format for frontend and sort by ID
+    const accounts = Object.entries(youtubeAccounts)
+      .map(([id, account]: [string, unknown]) => {
+        const acc = account as { name?: string; token_env_var?: string };
+        return {
+          id,
+          name: acc.name || id,
+          token_env_var: acc.token_env_var || `GOOGLE_TOKEN_${id.toUpperCase()}_JSON`
+        };
+      })
+      .sort((a, b) => a.id.localeCompare(b.id));
     
     return NextResponse.json({
       success: true,
