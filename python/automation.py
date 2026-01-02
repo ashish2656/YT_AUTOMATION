@@ -182,69 +182,27 @@ def get_videos_from_folder(drive_service, folder_id, uploaded_ids, uploaded_titl
 
 def get_next_video_with_subfolder_rotation(drive_service, main_folder_id, channel_id, uploaded_ids, uploaded_titles):
     """
-    Get the next video to upload, automatically rotating through subfolders
-    
-    This function:
-    1. Checks if main folder has subfolders
-    2. If yes, tracks which subfolder is current and rotates when exhausted
-    3. If no subfolders, treats main folder as video folder
+    Get the next video to upload from the folder
     
     Args:
         drive_service: Google Drive API service
-        main_folder_id: ID of the main/parent folder
-        channel_id: Channel ID for tracking
+        main_folder_id: ID of the folder containing videos
+        channel_id: Channel ID (not used, kept for compatibility)
         uploaded_ids: Set of already uploaded video IDs
         uploaded_titles: Set of already uploaded video titles
         
     Returns:
-        tuple: (video_dict, current_subfolder_name) or (None, None) if no videos
+        tuple: (video_dict, folder_name) or (None, None) if no videos
     """
-    # Get subfolders
-    subfolders = get_subfolders_from_drive(drive_service, main_folder_id)
+    # Get videos directly from the folder
+    print(f"📁 Getting videos from folder...", file=sys.stderr)
+    videos = get_videos_from_folder(drive_service, main_folder_id, uploaded_ids, uploaded_titles)
     
-    # If no subfolders, treat main folder as video folder
-    if not subfolders:
-        print(f"📁 No subfolders found, using main folder directly", file=sys.stderr)
-        videos = get_videos_from_folder(drive_service, main_folder_id, uploaded_ids, uploaded_titles)
-        if videos:
-            return videos[0], "main"
-        return None, None
+    if videos:
+        print(f"✅ Found {len(videos)} videos available", file=sys.stderr)
+        return videos[0], "main"
     
-    print(f"📁 Found {len(subfolders)} subfolders: {[sf['name'] for sf in subfolders]}", file=sys.stderr)
-    
-    # Load tracker to find current subfolder
-    tracker = load_subfolder_tracker()
-    channel_tracker = tracker.get(channel_id, {})
-    current_subfolder_index = channel_tracker.get("current_index", 0)
-    
-    # Try each subfolder starting from current
-    for attempt in range(len(subfolders)):
-        subfolder_index = (current_subfolder_index + attempt) % len(subfolders)
-        subfolder = subfolders[subfolder_index]
-        
-        print(f"🔍 Checking subfolder: {subfolder['name']} (index {subfolder_index})", file=sys.stderr)
-        
-        videos = get_videos_from_folder(drive_service, subfolder["id"], uploaded_ids, uploaded_titles)
-        
-        if videos:
-            # Update tracker if we moved to a different subfolder
-            if subfolder_index != current_subfolder_index:
-                print(f"📂 Switched to subfolder: {subfolder['name']}", file=sys.stderr)
-                tracker[channel_id] = {
-                    "current_index": subfolder_index,
-                    "current_folder_id": subfolder["id"],
-                    "current_folder_name": subfolder["name"],
-                    "updated_at": datetime.now().isoformat()
-                }
-                save_subfolder_tracker(tracker)
-            
-            print(f"✅ Found {len(videos)} videos in: {subfolder['name']}", file=sys.stderr)
-            return videos[0], subfolder["name"]
-        else:
-            print(f"⚠️ No videos left in: {subfolder['name']}", file=sys.stderr)
-    
-    # All subfolders exhausted
-    print(f"❌ All subfolders exhausted for channel {channel_id}", file=sys.stderr)
+    print(f"❌ No videos left to upload in folder", file=sys.stderr)
     return None, None
 
 def load_uploaded_ids_local():
