@@ -1413,15 +1413,21 @@ def upload_next(channel_id=None):
     metadata_gen = MetadataGenerator()
     channels = metadata_gen.get_enabled_channels()
     
+    # Debug: Log all available channels
+    print(f"DEBUG: Available channels: {[ch['id'] for ch in channels]}", file=sys.stderr)
+    print(f"DEBUG: Looking for channel_id: {channel_id}", file=sys.stderr)
+    
     # Find the specified channel or use first available
     target_channel = None
     if channel_id:
         for ch in channels:
             if ch["id"] == channel_id:
                 target_channel = ch
+                print(f"DEBUG: Found matching channel: {ch['name']}", file=sys.stderr)
                 break
     
     if not target_channel:
+        print(f"DEBUG: Channel '{channel_id}' not found, using fallback", file=sys.stderr)
         # Try to find any channel with drive_folder_id
         for ch in channels:
             if ch.get("drive_folder_id"):
