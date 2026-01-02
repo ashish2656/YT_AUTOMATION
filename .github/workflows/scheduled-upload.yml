@@ -33,6 +33,11 @@ jobs:
           restore-keys: |
             hf-moondream-${{ runner.os }}-
 
+      - name: Install system dependencies for pyvips
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libvips-dev
+
       - name: Install dependencies
         run: |
           cd python
