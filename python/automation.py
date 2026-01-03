@@ -354,7 +354,12 @@ def analyze_video_with_openai(video_buffer, filename, channel_name=""):
         return None
     
     try:
-        import cv2
+        try:
+            import cv2
+        except ImportError:
+            print("Warning: opencv-python not installed, skipping OpenAI fallback", file=sys.stderr)
+            return None
+            
         import base64
         import numpy as np
         from openai import OpenAI
@@ -946,14 +951,6 @@ def analyze_video_with_ai(video_buffer, filename, channel_name=""):
         print("🤖 Using OpenAI for analysis...", file=sys.stderr)
         video_buffer.seek(0)
         result = analyze_video_with_openai(video_buffer, filename, channel_name)
-        if result is not None:
-            return result
-    
-    # If local model wasn't tried first, try it now as last resort
-    if not use_local_first:
-        print("🌙 Trying local Moondream model as fallback...", file=sys.stderr)
-        video_buffer.seek(0)
-        result = analyze_video_with_moondream(video_buffer, filename, channel_name)
         if result is not None:
             return result
     
