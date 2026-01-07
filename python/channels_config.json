@@ -5,7 +5,7 @@
       "drive_folder_id": "https://drive.google.com/drive/folders/1oRMIuzjT3lRA5xTN5SB-TTlqqX-srWBp",
       "youtube_account": "account2",
       "categories": [
-        "tech reviewer"
+        "baddie"
       ],
       "templates": {
         "title": "{trending_title}",
@@ -13,20 +13,6 @@
       },
       "enabled": true,
       "id": "channel_1"
-    },
-    {
-      "name": "ajya2003 ->tech gadgets",
-      "drive_folder_id": "https://drive.google.com/drive/folders/1buFdIWsi_MbcxMN8b9WK2qANHKGxlMWe",
-      "categories": [
-        "Gadgets"
-      ],
-      "templates": {
-        "title": "{trending_title}",
-        "description": "{trending_description}\n\n#shorts"
-      },
-      "enabled": true,
-      "id": "channel_2",
-      "youtube_account": "account1"
     },
     {
       "name": "ashish2656 -> Satisfying",
