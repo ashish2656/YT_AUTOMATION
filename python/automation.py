@@ -716,9 +716,12 @@ def generate_viral_metadata_from_description(description, channel_name="", filen
     if not simple_desc.endswith('.'):
         simple_desc += '.'
     
+    # Include tags in description with hashtags
+    tag_string = ' '.join([f'#{tag}' for tag in tags[:5]])
+    
     full_description = f"""{simple_desc[:150]}
 
-#{category} #shorts"""
+{tag_string}"""
     
     return {
         "title": title[:100],

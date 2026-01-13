@@ -160,14 +160,16 @@ class MetadataGenerator:
             else:
                 title = f"{channel.get('name', 'Video')}"
             
-            # Simple description
-            description = f"{title}\n\n#shorts"
+            # Get default tags from channel or use minimal fallback
+            tags = channel.get("default_tags", ["shorts"])
+            
+            # Include tags in description with hashtags
+            tag_string = ' '.join([f'#{tag}' for tag in tags[:5]])
+            description = f"{title}\n\n{tag_string}"
         else:
             title = title_template
             description = description_template
-        
-        # Get default tags from channel or use minimal fallback
-        tags = channel.get("default_tags", ["shorts"])
+            tags = channel.get("default_tags", ["shorts"])
         
         return {
             "title": title[:100],  # YouTube max
@@ -192,10 +194,13 @@ class MetadataGenerator:
         else:
             title = "Video"
         
+        tags = ["shorts"]
+        tag_string = ' '.join([f'#{tag}' for tag in tags])
+        
         return {
             "title": title,
-            "description": f"{title}\n\n#shorts",
-            "tags": ["shorts"],
+            "description": f"{title}\n\n{tag_string}",
+            "tags": tags,
             "category": "Entertainment",
             "source_csv": None
         }
