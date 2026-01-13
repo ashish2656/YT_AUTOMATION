@@ -1,7 +1,7 @@
 {
   "channels": [
     {
-      "name": "ashish5151 -> Baddie",
+      "name": "Baddie",
       "drive_folder_id": "https://drive.google.com/drive/folders/1oRMIuzjT3lRA5xTN5SB-TTlqqX-srWBp",
       "youtube_account": "ashishdodiya5151@gmail.com",
       "categories": [
@@ -15,7 +15,7 @@
       "id": "channel_1"
     },
     {
-      "name": "ashish2656 -> Satisfying",
+      "name": "Satisfied On next",
       "drive_folder_id": "https://drive.google.com/drive/folders/1jzhyjsiKPRWJSZZSsasz4qq8Kq9qapV5",
       "youtube_account": "ashishdodiya2656@gmail.com",
       "categories": [
@@ -29,10 +29,10 @@
       "id": "channel_3"
     },
     {
-      "name": "ajay5151 ->4k reels",
+      "name": "ShortMaster",
       "drive_folder_id": "https://drive.google.com/drive/folders/1z57u3QvY5BE5uZWQ4UA5x5HPXX0vQ4TE",
       "categories": [
-        "$k"
+        "4k"
       ],
       "templates": {
         "title": "{trending_title}",
@@ -43,7 +43,7 @@
       "youtube_account": "ajaydodiya5151@gmail.com"
     },
     {
-      "name": "ashish269697 -> Mixed Content",
+      "name": "Hottieee",
       "drive_folder_id": "https://drive.google.com/drive/folders/1zjcqYUmE0Dzp6Jtuv-jy7fl4_D5WZFEg",
       "youtube_account": "ashishdodiya269697@gmail.com",
       "categories": [
@@ -59,19 +59,19 @@
   ],
   "youtube_accounts": {
     "ashishdodiya5151@gmail.com": {
-      "name": "ashishdodiya5151@gmail.com",
+      "name": "Baddie",
       "token_env_var": "GOOGLE_TOKEN_ACCOUNT2_JSON"
     },
     "ashishdodiya2656@gmail.com": {
-      "name": "ashishdodiya2656@gmail.com",
+      "name": "Satisfied On next",
       "token_env_var": "GOOGLE_TOKEN_ACCOUNT3_JSON"
     },
     "ajaydodiya5151@gmail.com": {
-      "name": "ajaydodiya5151@gmail.com",
+      "name": "ShortMaster",
       "token_env_var": "GOOGLE_TOKEN_ACCOUNT4_JSON"
     },
     "ashishdodiya269697@gmail.com": {
-      "name": "ashishdodiya269697@gmail.com",
+      "name": "Hottieee",
       "token_env_var": "GOOGLE_TOKEN_ACCOUNT5_JSON"
     }
   }
