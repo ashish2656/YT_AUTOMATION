@@ -9,7 +9,6 @@ on:
         type: choice
         options:
           - channel_1
-          - channel_2
           - channel_3
           - channel_4
           - channel_5
@@ -19,11 +18,10 @@ on:
         required: false
         type: choice
         options:
-          - 'account1 - ajya2003 -> tech gadgets'
-          - 'account2 - ashish5151 -> Baddie'
-          - 'account3 - ashish2656 -> Satisfying'
-          - 'account4 - ajay5151 -> 4k reels'
-          - 'account5 - ashish269697 -> Mixed Content'
+          - 'account2 - ashishdodiya5151@gmail.com'
+          - 'account3 - ashishdodiya2656@gmail.com'
+          - 'account4 - ajaydodiya5151@gmail.com'
+          - 'account5 - ashishdodiya269697@gmail.com'
 
 jobs:
   test-upload:
