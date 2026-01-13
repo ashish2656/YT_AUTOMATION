@@ -3,7 +3,7 @@
     {
       "name": "ashish5151 -> Baddie",
       "drive_folder_id": "https://drive.google.com/drive/folders/1oRMIuzjT3lRA5xTN5SB-TTlqqX-srWBp",
-      "youtube_account": "account2",
+      "youtube_account": "ashishdodiya5151@gmail.com",
       "categories": [
         "baddie"
       ],
@@ -17,7 +17,7 @@
     {
       "name": "ashish2656 -> Satisfying",
       "drive_folder_id": "https://drive.google.com/drive/folders/1jzhyjsiKPRWJSZZSsasz4qq8Kq9qapV5",
-      "youtube_account": "account3",
+      "youtube_account": "ashishdodiya2656@gmail.com",
       "categories": [
         "Relaxation"
       ],
@@ -40,12 +40,12 @@
       },
       "enabled": true,
       "id": "channel_4",
-      "youtube_account": "account4"
+      "youtube_account": "ajaydodiya5151@gmail.com"
     },
     {
       "name": "ashish269697 -> Mixed Content",
       "drive_folder_id": "https://drive.google.com/drive/folders/1zjcqYUmE0Dzp6Jtuv-jy7fl4_D5WZFEg",
-      "youtube_account": "account5",
+      "youtube_account": "ashishdodiya269697@gmail.com",
       "categories": [
         "baddie"
       ],
@@ -58,24 +58,20 @@
     }
   ],
   "youtube_accounts": {
-    "account1": {
-      "name": "Account 1",
-      "token_env_var": "GOOGLE_TOKEN_ACCOUNT1_JSON"
-    },
-    "account2": {
-      "name": "Account 2",
+    "ashishdodiya5151@gmail.com": {
+      "name": "ashishdodiya5151@gmail.com",
       "token_env_var": "GOOGLE_TOKEN_ACCOUNT2_JSON"
     },
-    "account3": {
-      "name": "Account 3",
+    "ashishdodiya2656@gmail.com": {
+      "name": "ashishdodiya2656@gmail.com",
       "token_env_var": "GOOGLE_TOKEN_ACCOUNT3_JSON"
     },
-    "account4": {
-      "name": "Account 4",
+    "ajaydodiya5151@gmail.com": {
+      "name": "ajaydodiya5151@gmail.com",
       "token_env_var": "GOOGLE_TOKEN_ACCOUNT4_JSON"
     },
-    "account5": {
-      "name": "Account 5",
+    "ashishdodiya269697@gmail.com": {
+      "name": "ashishdodiya269697@gmail.com",
       "token_env_var": "GOOGLE_TOKEN_ACCOUNT5_JSON"
     }
   }

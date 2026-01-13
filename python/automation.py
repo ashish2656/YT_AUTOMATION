@@ -1089,9 +1089,25 @@ def delete_token_from_mongo():
 # Authentication
 # ------------------------------
 def get_credentials_for_account(account_id="account1"):
-    """Get credentials for a specific account"""
-    # Try to load from token file first
-    token_file = os.path.join(SCRIPT_DIR, f"token_{account_id}.json")
+    """Get credentials for a specific account (email address or legacy account ID)"""
+    # Support both email addresses and legacy account IDs
+    if "@gmail.com" in account_id:
+        email = account_id
+        # Map email to token file
+        token_file = os.path.join(SCRIPT_DIR, f"token_{email}.json")
+    else:
+        # Legacy account ID (account2, account3, etc.)
+        # Map to email first
+        email_map = {
+            "account2": "ashishdodiya5151@gmail.com",
+            "account3": "ashishdodiya2656@gmail.com",
+            "account4": "ajaydodiya5151@gmail.com",
+            "account5": "ashishdodiya269697@gmail.com"
+        }
+        email = email_map.get(account_id, account_id)
+        token_file = os.path.join(SCRIPT_DIR, f"token_{email}.json")
+    
+    # Priority 1: Try token file by email
     if os.path.exists(token_file):
         try:
             with open(token_file, 'r') as f:
@@ -1101,22 +1117,41 @@ def get_credentials_for_account(account_id="account1"):
         except Exception as e:
             print(f"Failed to load token from {token_file}: {e}", file=sys.stderr)
     
-    # Fallback: Load environment variable for the specific account
-    token_env_var = f"GOOGLE_TOKEN_ACCOUNT{account_id[-1]}_JSON"
-    token_json = os.environ.get(token_env_var)
+    # Priority 2: Try legacy token file by account ID (for backwards compatibility)
+    if not "@gmail.com" in account_id:
+        legacy_token_file = os.path.join(SCRIPT_DIR, f"token_{account_id}.json")
+        if os.path.exists(legacy_token_file):
+            try:
+                with open(legacy_token_file, 'r') as f:
+                    token_data = json.load(f)
+                creds = Credentials.from_authorized_user_info(token_data, SCOPES)
+                return creds
+            except Exception as e:
+                print(f"Failed to load token from {legacy_token_file}: {e}", file=sys.stderr)
     
-    if token_json:
-        try:
-            # Remove surrounding quotes if present
-            token_json = token_json.strip("'\"")
-            token_data = json.loads(token_json)
-            creds = Credentials.from_authorized_user_info(token_data, SCOPES)
-            return creds
-        except Exception as e:
-            print(f"Failed to load token for {account_id}: {e}", file=sys.stderr)
+    # Priority 3: Load environment variable
+    # Map email to environment variable
+    env_var_map = {
+        "ashishdodiya5151@gmail.com": "GOOGLE_TOKEN_ACCOUNT2_JSON",
+        "ashishdodiya2656@gmail.com": "GOOGLE_TOKEN_ACCOUNT3_JSON",
+        "ajaydodiya5151@gmail.com": "GOOGLE_TOKEN_ACCOUNT4_JSON",
+        "ashishdodiya269697@gmail.com": "GOOGLE_TOKEN_ACCOUNT5_JSON"
+    }
+    token_env_var = env_var_map.get(email)
+    if token_env_var:
+        token_json = os.environ.get(token_env_var)
+        if token_json:
+            try:
+                # Remove surrounding quotes if present
+                token_json = token_json.strip("'\"")
+                token_data = json.loads(token_json)
+                creds = Credentials.from_authorized_user_info(token_data, SCOPES)
+                return creds
+            except Exception as e:
+                print(f"Failed to load token for {email}: {e}", file=sys.stderr)
     
     # Last fallback to default credentials (will trigger OAuth if needed)
-    print(f"Warning: No token found for {account_id}, using default auth", file=sys.stderr)
+    print(f"Warning: No token found for {email}, using default auth", file=sys.stderr)
     return get_credentials(load_config())
 
 def get_credentials(config):
@@ -1147,12 +1182,14 @@ def get_credentials(config):
                 "client_id": config["client_id"],
                 "client_secret": config["client_secret"],
                 "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                "token_uri": "https://oauth2.googleapis.com/token"
+                "token_uri": "https://oauth2.googleapis.com/token",
+                "redirect_uris": ["http://localhost:8080/"]
             }
         },
         SCOPES
     )
-    creds = flow.run_local_server(port=0)
+    # Force consent and request offline access to get refresh_token
+    creds = flow.run_local_server(port=8080, prompt='consent', access_type='offline')
     
     # Save to file
     with open(TOKEN_FILE, "w") as f:
@@ -1308,14 +1345,6 @@ def upload_next(channel_id_or_email=None):
     metadata_gen = MetadataGenerator()
     channels = metadata_gen.get_enabled_channels()
     
-    # Email to account mapping
-    email_to_account = {
-        "ashishdodiya5151@gmail.com": "account2",
-        "ashishdodiya2656@gmail.com": "account3",
-        "ajaydodiya5151@gmail.com": "account4",
-        "ashishdodiya269697@gmail.com": "account5"
-    }
-    
     # Debug: Log all available channels
     print(f"DEBUG: Available channels: {[ch['id'] for ch in channels]}", file=sys.stderr)
     print(f"DEBUG: Looking for: {channel_id_or_email}", file=sys.stderr)
@@ -1323,17 +1352,15 @@ def upload_next(channel_id_or_email=None):
     # Find the specified channel
     target_channel = None
     if channel_id_or_email:
-        # Check if it's an email address
+        # Check if it's an email address or channel_id
         if "@gmail.com" in channel_id_or_email:
-            account_id = email_to_account.get(channel_id_or_email)
-            if account_id:
-                print(f"DEBUG: Email {channel_id_or_email} mapped to {account_id}", file=sys.stderr)
-                # Find channel by youtube_account
-                for ch in channels:
-                    if ch.get("youtube_account") == account_id:
-                        target_channel = ch
-                        print(f"DEBUG: Found channel: {ch['name']}", file=sys.stderr)
-                        break
+            # Find channel by youtube_account (email)
+            print(f"DEBUG: Searching for channel with youtube_account: {channel_id_or_email}", file=sys.stderr)
+            for ch in channels:
+                if ch.get("youtube_account") == channel_id_or_email:
+                    target_channel = ch
+                    print(f"DEBUG: Found channel: {ch['name']}", file=sys.stderr)
+                    break
         else:
             # Try to find by channel_id
             for ch in channels:
