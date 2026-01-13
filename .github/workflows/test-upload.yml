@@ -34,11 +34,10 @@ jobs:
 
       - name: Create token files from secrets
         run: |
-          echo '${{ secrets.GOOGLE_TOKEN_ACCOUNT1_JSON }}' > python/token_account1.json
-          echo '${{ secrets.GOOGLE_TOKEN_ACCOUNT2_JSON }}' > python/token_account2.json
-          echo '${{ secrets.GOOGLE_TOKEN_ACCOUNT3_JSON }}' > python/token_account3.json
-          echo '${{ secrets.GOOGLE_TOKEN_ACCOUNT4_JSON }}' > python/token_account4.json
-          echo '${{ secrets.GOOGLE_TOKEN_ACCOUNT5_JSON }}' > python/token_account5.json
+          echo '${{ secrets.GOOGLE_TOKEN_ACCOUNT2_JSON }}' > python/token_ashishdodiya5151@gmail.com.json
+          echo '${{ secrets.GOOGLE_TOKEN_ACCOUNT3_JSON }}' > python/token_ashishdodiya2656@gmail.com.json
+          echo '${{ secrets.GOOGLE_TOKEN_ACCOUNT4_JSON }}' > python/token_ajaydodiya5151@gmail.com.json
+          echo '${{ secrets.GOOGLE_TOKEN_ACCOUNT5_JSON }}' > python/token_ashishdodiya269697@gmail.com.json
 
       - name: Test upload for selected channel
         env:
@@ -54,4 +53,4 @@ jobs:
       - name: Cleanup token files
         if: always()
         run: |
-          rm -f python/token_account*.json
+          rm -f python/token_*@gmail.com.json
