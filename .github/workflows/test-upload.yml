@@ -3,25 +3,16 @@ name: Test Upload (Single Channel)
 on:
   workflow_dispatch:
     inputs:
-      channel:
-        description: 'Select channel to upload from'
+      email:
+        description: 'Select Gmail account to upload from'
         required: true
         type: choice
         options:
-          - channel_1
-          - channel_3
-          - channel_4
-          - channel_5
-        default: 'channel_1'
-      channel_name:
-        description: 'Channel name (for reference only)'
-        required: false
-        type: choice
-        options:
-          - 'account2 - ashishdodiya5151@gmail.com'
-          - 'account3 - ashishdodiya2656@gmail.com'
-          - 'account4 - ajaydodiya5151@gmail.com'
-          - 'account5 - ashishdodiya269697@gmail.com'
+          - ashishdodiya5151@gmail.com
+          - ashishdodiya2656@gmail.com
+          - ajaydodiya5151@gmail.com
+          - ashishdodiya269697@gmail.com
+        default: 'ashishdodiya5151@gmail.com'
 
 jobs:
   test-upload:
@@ -57,8 +48,8 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           cd python
-          echo "🧪 Testing upload for channel: ${{ github.event.inputs.channel }}"
-          python automation.py upload --channel ${{ github.event.inputs.channel }}
+          echo "🧪 Testing upload for: ${{ github.event.inputs.email }}"
+          python automation.py upload --email ${{ github.event.inputs.email }}
 
       - name: Cleanup token files
         if: always()

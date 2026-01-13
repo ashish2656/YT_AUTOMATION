@@ -1300,29 +1300,50 @@ def get_uploaded_history(limit=50):
         print(f"Error getting upload history: {e}", file=sys.stderr)
         return []
 
-def upload_next(channel_id=None):
-    """Upload the next pending video to YouTube using specified channel"""
+def upload_next(channel_id_or_email=None):
+    """Upload the next pending video to YouTube using specified channel or email"""
     config = load_config()
     
     # Get channel info
     metadata_gen = MetadataGenerator()
     channels = metadata_gen.get_enabled_channels()
     
+    # Email to account mapping
+    email_to_account = {
+        "ashishdodiya5151@gmail.com": "account2",
+        "ashishdodiya2656@gmail.com": "account3",
+        "ajaydodiya5151@gmail.com": "account4",
+        "ashishdodiya269697@gmail.com": "account5"
+    }
+    
     # Debug: Log all available channels
     print(f"DEBUG: Available channels: {[ch['id'] for ch in channels]}", file=sys.stderr)
-    print(f"DEBUG: Looking for channel_id: {channel_id}", file=sys.stderr)
+    print(f"DEBUG: Looking for: {channel_id_or_email}", file=sys.stderr)
     
-    # Find the specified channel or use first available
+    # Find the specified channel
     target_channel = None
-    if channel_id:
-        for ch in channels:
-            if ch["id"] == channel_id:
-                target_channel = ch
-                print(f"DEBUG: Found matching channel: {ch['name']}", file=sys.stderr)
-                break
+    if channel_id_or_email:
+        # Check if it's an email address
+        if "@gmail.com" in channel_id_or_email:
+            account_id = email_to_account.get(channel_id_or_email)
+            if account_id:
+                print(f"DEBUG: Email {channel_id_or_email} mapped to {account_id}", file=sys.stderr)
+                # Find channel by youtube_account
+                for ch in channels:
+                    if ch.get("youtube_account") == account_id:
+                        target_channel = ch
+                        print(f"DEBUG: Found channel: {ch['name']}", file=sys.stderr)
+                        break
+        else:
+            # Try to find by channel_id
+            for ch in channels:
+                if ch["id"] == channel_id_or_email:
+                    target_channel = ch
+                    print(f"DEBUG: Found matching channel: {ch['name']}", file=sys.stderr)
+                    break
     
     if not target_channel:
-        print(f"DEBUG: Channel '{channel_id}' not found, using fallback", file=sys.stderr)
+        print(f"DEBUG: Channel/Email '{channel_id_or_email}' not found, using fallback", file=sys.stderr)
         # Try to find any channel with drive_folder_id
         for ch in channels:
             if ch.get("drive_folder_id"):
@@ -1663,14 +1684,17 @@ if __name__ == "__main__":
             channel_id = None
             video_id = None
             
-            # Parse arguments: upload [video_id] [channel_id] or upload --channel channel_id
+            # Parse arguments: upload [video_id] or upload --email email@gmail.com or upload --channel channel_id
             i = 2
             while i < len(sys.argv):
                 arg = sys.argv[i]
-                if arg == "--channel" and i + 1 < len(sys.argv):
+                if arg in ["--email", "--channel"] and i + 1 < len(sys.argv):
                     channel_id = sys.argv[i + 1]
                     i += 2
                 elif arg.startswith('channel'):
+                    channel_id = arg
+                    i += 1
+                elif "@gmail.com" in arg:
                     channel_id = arg
                     i += 1
                 else:
