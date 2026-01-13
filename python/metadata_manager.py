@@ -138,8 +138,8 @@ class MetadataGenerator:
         """Generate metadata using channel templates or filename"""
         # Get templates from channel config
         templates = channel.get("templates", {})
-        title_template = templates.get("title", "Amazing Video #Shorts")
-        description_template = templates.get("description", "Check out this amazing video!")
+        title_template = templates.get("title", "Video #Shorts")
+        description_template = templates.get("description", "")
         
         # If templates contain placeholders, generate from filename
         if "{trending_title}" in title_template or "{trending_description}" in description_template:
@@ -154,25 +154,25 @@ class MetadataGenerator:
                 clean_name = clean_name.strip()
                 
                 if clean_name:
-                    title = f"{clean_name[:55]} #Shorts"
+                    title = f"{clean_name[:50]}"
                 else:
-                    title = f"{channel.get('name', 'Amazing Video')} #Shorts"
+                    title = f"{channel.get('name', 'Video')}"
             else:
-                title = f"{channel.get('name', 'Amazing Video')} #Shorts"
+                title = f"{channel.get('name', 'Video')}"
             
-            channel_name = channel.get('name', '')
-            description = f"{title}\n\n#shorts #viral #trending"
+            # Simple description
+            description = f"{title}\n\n#shorts"
         else:
             title = title_template
             description = description_template
         
-        # Get default tags from channel or use fallback
-        tags = channel.get("default_tags", ["shorts", "viral", "trending"])
+        # Get default tags from channel or use minimal fallback
+        tags = channel.get("default_tags", ["shorts"])
         
         return {
             "title": title[:100],  # YouTube max
             "description": description[:5000],  # YouTube max
-            "tags": tags,
+            "tags": tags[:5],  # Limit to 5 tags
             "category": "Entertainment"
         }
     
@@ -186,16 +186,16 @@ class MetadataGenerator:
             clean_name = re.sub(r'^\d+\s*', '', clean_name).strip()
             
             if clean_name:
-                title = f"{clean_name[:55]} #Shorts"
+                title = f"{clean_name[:50]}"
             else:
-                title = "Amazing Video #Shorts"
+                title = "Video"
         else:
-            title = "Amazing Video #Shorts"
+            title = "Video"
         
         return {
             "title": title,
-            "description": f"{title}\n\n#shorts #viral #trending",
-            "tags": ["shorts", "viral", "trending"],
+            "description": f"{title}\n\n#shorts",
+            "tags": ["shorts"],
             "category": "Entertainment",
             "source_csv": None
         }

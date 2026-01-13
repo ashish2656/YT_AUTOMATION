@@ -253,37 +253,35 @@ def analyze_video_with_gemini(video_buffer, filename, channel_name=""):
                 print(f"Warning: Video processing timed out or failed", file=sys.stderr)
                 return None
             
-            # Create prompt for Gemini - VIRAL optimized
-            prompt = f"""You are an expert YouTube Shorts viral content strategist with 10+ years of experience.
-
-Analyze this video and create VIRAL metadata that will EXPLODE on YouTube Shorts.
+            # Create prompt for Gemini - Natural and organic
+            prompt = f"""Analyze this short video and create natural, engaging YouTube Shorts metadata.
 
 Channel: {channel_name}
 
-🔥 VIRAL TITLE RULES:
-- MAXIMUM 50 characters (YouTube cuts off longer titles)
-- Use power words: "Insane", "Mind-Blowing", "You Won't Believe", "Secret", "Shocking", "Wait for it"
-- Create curiosity gap - make them NEED to watch
-- NO emojis, NO clickbait lies
-- Pattern interrupt - something unexpected
+Title Guidelines:
+- Maximum 50-60 characters
+- Descriptive and clear about video content
+- Natural language, no excessive hype
+- Simple and straightforward
+- Can include relevant emojis if they fit naturally
 
-💥 VIRAL DESCRIPTION RULES:
-- First line = emotional hook that creates FOMO
-- Add call-to-action: "Follow for more!", "Comment your reaction!", "Save this!"
-- Include 3-5 relevant keywords naturally
-- Maximum 150 characters
+Description Guidelines:
+- 1-2 sentences describing what viewers will see
+- Natural conversational tone
+- Keep it under 100 characters
+- Don't force call-to-actions
 
-🏷️ VIRAL TAGS RULES:
-- Exactly 5 hashtags
-- Mix of: 2 trending tags + 2 niche tags + 1 broad tag
-- All lowercase, no spaces
-- Use currently trending hashtags
+Tags Guidelines:
+- 3-5 relevant hashtags
+- Mix of specific and general tags
+- Lowercase, directly related to content
+- Include #shorts
 
-OUTPUT JSON ONLY:
+Output ONLY valid JSON:
 {{
-  "title": "viral title here",
-  "description": "viral description with CTA",
-  "tags": ["viral", "trending", "niche1", "niche2", "broad"]
+  "title": "clear descriptive title",
+  "description": "simple natural description",
+  "tags": ["shorts", "relevant1", "relevant2"]
 }}"""
             
             # Generate response using gemini-2.5-flash
@@ -622,8 +620,8 @@ def analyze_video_with_moondream(video_buffer, filename, channel_name=""):
 
 def generate_viral_metadata_from_description(description, channel_name="", filename=""):
     """
-    Generate viral YouTube Shorts metadata from a video description
-    Uses pattern matching and templates for viral content
+    Generate organic YouTube Shorts metadata from a video description
+    Uses pattern matching and natural templates
     
     Args:
         description: Text description of the video content
@@ -634,107 +632,98 @@ def generate_viral_metadata_from_description(description, channel_name="", filen
         dict: {"title": str, "description": str, "tags": list, "category_id": str}
     """
     import re
+    import random
     
     description_lower = description.lower()
-    
-    # Power words for viral titles
-    power_words = ["INSANE", "INCREDIBLE", "UNBELIEVABLE", "SHOCKING", "AMAZING", 
-                   "MIND-BLOWING", "EPIC", "LEGENDARY", "WILD", "CRAZY"]
     
     # Detect content category and generate appropriate metadata
     if any(word in description_lower for word in ["cat", "dog", "pet", "animal", "puppy", "kitten"]):
         category = "animals"
-        hooks = ["This Will Melt Your Heart! 🥺", "Wait For It... 😱", "I Can't Stop Watching! 🔥"]
-        tags = ["animals", "pets", "cute", "funny", "viral", "shorts"]
+        hooks = ["Cute moment", "Animal video", "Pet content"]
+        tags = ["shorts", "animals", "pets", "cute"]
         category_id = "15"  # Pets & Animals
         
     elif any(word in description_lower for word in ["food", "cook", "eat", "recipe", "delicious", "chef"]):
         category = "food"
-        hooks = ["You NEED To Try This! 🤤", "Food Hack That Changed My Life!", "Wait Until You See This! 😋"]
-        tags = ["food", "cooking", "recipe", "foodie", "viral", "shorts"]
+        hooks = ["Food recipe", "Cooking video", "Food preparation"]
+        tags = ["shorts", "food", "cooking", "recipe"]
         category_id = "26"  # Howto & Style
         
     elif any(word in description_lower for word in ["game", "gaming", "play", "player", "gamer", "video game"]):
         category = "gaming"
-        hooks = ["This Play Was INSANE! 🎮", "Watch This Clutch! 🔥", "They Didn't See This Coming! 😱"]
-        tags = ["gaming", "gamer", "gameplay", "epic", "viral", "shorts"]
+        hooks = ["Gaming moment", "Gameplay clip", "Game video"]
+        tags = ["shorts", "gaming", "gameplay"]
         category_id = "20"  # Gaming
         
     elif any(word in description_lower for word in ["satisfying", "oddly", "smooth", "perfect", "asmr"]):
         category = "satisfying"
-        hooks = ["So Satisfying To Watch! 😌", "I Could Watch This Forever!", "Pure Satisfaction! ✨"]
-        tags = ["satisfying", "oddlysatisfying", "asmr", "relaxing", "viral", "shorts"]
+        hooks = ["Satisfying video", "Relaxing content", "Smooth process"]
+        tags = ["shorts", "satisfying", "oddlysatisfying", "relaxing"]
         category_id = "24"  # Entertainment
         
     elif any(word in description_lower for word in ["funny", "laugh", "comedy", "hilarious", "joke"]):
         category = "comedy"
-        hooks = ["I Can't Stop Laughing! 😂", "This Is Too Funny!", "Wait For The End! 🤣"]
-        tags = ["funny", "comedy", "laugh", "humor", "viral", "shorts"]
+        hooks = ["Funny moment", "Comedy video", "Humorous clip"]
+        tags = ["shorts", "funny", "comedy"]
         category_id = "23"  # Comedy
         
     elif any(word in description_lower for word in ["tech", "gadget", "phone", "computer", "device", "robot"]):
         category = "tech"
-        hooks = ["This Tech Is From The Future! 🤯", "You Won't Believe This Gadget!", "Game Changer! 🔥"]
-        tags = ["tech", "gadgets", "technology", "innovation", "viral", "shorts"]
+        hooks = ["Tech showcase", "Gadget review", "Technology video"]
+        tags = ["shorts", "tech", "technology", "gadgets"]
         category_id = "28"  # Science & Technology
         
     elif any(word in description_lower for word in ["car", "drive", "vehicle", "race", "speed", "motor"]):
         category = "cars"
-        hooks = ["This Car Is INSANE! 🏎️", "Listen To That Engine! 🔥", "Pure Power! 💪"]
-        tags = ["cars", "automotive", "racing", "supercar", "viral", "shorts"]
+        hooks = ["Car video", "Vehicle showcase", "Automotive content"]
+        tags = ["shorts", "cars", "automotive"]
         category_id = "2"  # Autos & Vehicles
         
     elif any(word in description_lower for word in ["fitness", "workout", "gym", "exercise", "muscle", "training"]):
         category = "fitness"
-        hooks = ["Try This Workout! 💪", "Fitness Hack That Works!", "Transform Your Body! 🔥"]
-        tags = ["fitness", "workout", "gym", "exercise", "motivation", "shorts"]
+        hooks = ["Workout routine", "Fitness video", "Exercise demonstration"]
+        tags = ["shorts", "fitness", "workout", "gym"]
         category_id = "17"  # Sports
         
     elif any(word in description_lower for word in ["beauty", "makeup", "skincare", "fashion", "style", "outfit"]):
         category = "beauty"
-        hooks = ["This Changed Everything! ✨", "Beauty Secret Revealed!", "You Need This! 💅"]
-        tags = ["beauty", "makeup", "skincare", "fashion", "style", "shorts"]
+        hooks = ["Beauty tutorial", "Makeup video", "Fashion content"]
+        tags = ["shorts", "beauty", "makeup", "fashion"]
         category_id = "26"  # Howto & Style
         
     else:
         # Default/general content
         category = "general"
-        hooks = ["You Have To See This! 🔥", "Wait For It... 😱", "This Is INCREDIBLE! 🤯"]
-        tags = ["viral", "trending", "amazing", "mustwatch", "shorts"]
+        hooks = ["Interesting video", "Check this out", "Cool moment"]
+        tags = ["shorts", "video"]
         category_id = "24"  # Entertainment
     
     import random
     
-    # Generate title
+    # Generate title - simple and natural
     hook = random.choice(hooks)
-    power_word = random.choice(power_words)
     
-    # Create a short summary from description (first sentence or 50 chars)
-    summary = description.split('.')[0][:50].strip()
-    if len(summary) > 30:
-        summary = summary[:30] + "..."
+    # Create a short summary from description (first 40 chars)
+    summary = description.split('.')[0][:40].strip()
     
-    # Final title (max 100 chars for YouTube)
-    title = f"{hook}"
-    if len(title) < 60:
-        title = f"{power_word}! {hook}"
+    # Final title (max 60 chars for better visibility)
+    title = f"{summary} #shorts" if summary else hook
+    title = title[:60]
     
-    # Generate description with CTAs
-    full_description = f"""{description[:200]}
+    # Generate simple description
+    desc_parts = description.split('.')[:2]  # First 2 sentences max
+    simple_desc = '. '.join(desc_parts).strip()
+    if not simple_desc.endswith('.'):
+        simple_desc += '.'
+    
+    full_description = f"""{simple_desc[:150]}
 
-🔥 {hook}
-
-👆 WATCH TILL THE END!
-💬 Comment what you think!
-❤️ Like if you enjoyed this!
-🔔 Follow for more!
-
-#shorts #{category} #viral #trending #fyp"""
+#{category} #shorts"""
     
     return {
         "title": title[:100],
         "description": full_description[:5000],
-        "tags": tags + ["shorts", "viral", "trending", "fyp"],
+        "tags": tags[:5],  # Limit to 5 tags
         "category_id": category_id
     }
 
